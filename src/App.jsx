@@ -507,6 +507,34 @@ export default function App() {
     flashWithTimer('Reminder set in 30 min — edit to adjust');
     setActive('reminders');
   };
+  // Build a reminder from a routine using its time field. Schedules for today
+  // if the time is still in the future, otherwise tomorrow. Repeats daily so
+  // the routine fires every day at that time.
+  const reminderFromRoutine = (task) => {
+    if (!task.time) {
+      flashWithTimer('Add a time to this routine first', true);
+      return;
+    }
+    const [h, m] = task.time.split(':').map(Number);
+    const target = new Date();
+    target.setHours(h || 0, m || 0, 0, 0);
+    if (target.getTime() <= Date.now()) target.setDate(target.getDate() + 1);
+    setReminders((prev) => [
+      {
+        id: uid(),
+        title: task.name,
+        when: target.toISOString(),
+        notes: task.description || '',
+        repeat: 'daily',
+        priority: 'medium',
+        done: false,
+        fired: false,
+      },
+      ...prev,
+    ]);
+    flashWithTimer(`Reminder set for ${task.name} at ${task.time}`);
+  };
+
   const captureToRoutine = (text) => {
     const t = (text || '').trim();
     if (!t) return;
@@ -600,6 +628,21 @@ export default function App() {
         </div>
       )}
 
+      {/* Frosted safe-area strips for mobile/PWA — gives the status bar and home
+          indicator zone a blurred backdrop so scrolling content doesn't bleed
+          through. Heights include the small bar offsets so the blur is also
+          visible in regular browsers where the safe-area envs resolve to 0. */}
+      <div
+        aria-hidden="true"
+        className="lg:hidden fixed top-0 left-0 right-0 z-[35] pointer-events-none bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl"
+        style={{ height: 'calc(0.75rem + env(safe-area-inset-top))' }}
+      />
+      <div
+        aria-hidden="true"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-[25] pointer-events-none bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl"
+        style={{ height: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+      />
+
       <div className="min-h-screen p-3 lg:p-6 pb-24 lg:pb-6">
         <div className="mx-auto max-w-7xl flex flex-col lg:flex-row gap-3 lg:gap-6">
           <Sidebar
@@ -680,7 +723,7 @@ export default function App() {
                 </>
               )}
               {active === 'tasks' && (
-                <Tasks tasks={tasks} setTasks={setTasks} goals={goals} setGoals={setGoals} confirm={confirm} flash={flashWithTimer} />
+                <Tasks tasks={tasks} setTasks={setTasks} goals={goals} setGoals={setGoals} confirm={confirm} flash={flashWithTimer} onSetReminder={reminderFromRoutine} />
               )}
               {active === 'goals' && (
                 <GoalsView goals={goals} setGoals={setGoals} tasks={tasks} setTasks={setTasks} completions={completions} confirm={confirm} flash={flashWithTimer} />

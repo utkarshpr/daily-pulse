@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, ArrowRight, X, Target, Check, Search, Inbox, Keyboard, Bell, Lightbulb } from 'lucide-react';
+import { Sparkles, ArrowRight, X, Target, Check, Search, Inbox, Keyboard, Bell, Lightbulb, Calendar, ListChecks, CalendarDays, StickyNote, BookOpen, BarChart3, User, Lock, Timer, Smartphone } from 'lucide-react';
 import { uid, cn } from '../lib/utils';
 import { suggestHabits, STARTER_ROUTINES } from '../lib/habitSuggestions';
 
@@ -94,7 +94,7 @@ export default function Onboarding({ open, onClose, setTasks, setGoals, flash })
               onTogglePick={togglePick}
             />
           )}
-          {step === 3 && <TourStep />}
+          {step === 3 && <FeaturesStep />}
           {step === 4 && <DoneStep goalText={goalText} count={picked.size} />}
         </div>
 
@@ -254,68 +254,60 @@ function RoutinesStep({ detected, offered, picked, onTogglePick }) {
   );
 }
 
-function TourStep() {
+const FEATURES = [
+  { icon: Calendar, title: 'Today', body: 'Streaks, weekly heat strip, swipe-to-check, drag-reorder.', gradient: 'from-violet-500 to-fuchsia-500' },
+  { icon: ListChecks, title: 'Routines', body: 'Habits with time, days, count tracking, colors & icons.', gradient: 'from-cyan-500 to-sky-500' },
+  { icon: Target, title: 'Goals', body: 'Link routines, watch 30-day rolling progress.', gradient: 'from-emerald-500 to-teal-500' },
+  { icon: CalendarDays, title: 'Calendar', body: 'Month grid: completion, notes & reminders by day.', gradient: 'from-amber-500 to-orange-500' },
+  { icon: StickyNote, title: 'Notes', body: 'Markdown, tags, pinning, voice dictation, colors.', gradient: 'from-rose-500 to-pink-500' },
+  { icon: Bell, title: 'Reminders', body: 'Date+time picker, repeats, smart parser, push when closed.', gradient: 'from-indigo-500 to-blue-500' },
+  { icon: BookOpen, title: 'Journal', body: 'Daily reflection prompt logs by date for review later.', gradient: 'from-violet-500 to-purple-500' },
+  { icon: BarChart3, title: 'Stats & badges', body: 'Charts, streak insights, achievement unlocks.', gradient: 'from-cyan-500 to-emerald-500' },
+  { icon: Timer, title: 'Pomodoro', body: 'Focus timer that can auto-check a linked routine.', gradient: 'from-rose-500 to-orange-500' },
+  { icon: Inbox, title: 'Quick capture', body: 'Brain-dump → convert into note, reminder, or routine.', gradient: 'from-amber-500 to-pink-500' },
+  { icon: Search, title: 'Command palette', body: '⌘K to jump anywhere & run any action.', gradient: 'from-violet-500 to-cyan-500' },
+  { icon: User, title: 'Profiles', body: 'Separate spaces (e.g. Work / Home) with their own data.', gradient: 'from-rose-500 to-orange-500' },
+  { icon: Lock, title: 'Encrypted backup', body: 'AES-256 export blob + JSON/CSV export & import.', gradient: 'from-emerald-500 to-cyan-500' },
+  { icon: Smartphone, title: 'Install as PWA', body: 'Works offline; reminders ring after closing the tab.', gradient: 'from-indigo-500 to-blue-500' },
+];
+
+function FeaturesStep() {
   return (
     <div>
       <div className="flex items-center gap-3 mb-3">
         <div className="size-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-500 grid place-items-center text-white shadow">
-          <Keyboard size={18} />
+          <Sparkles size={18} />
         </div>
-        <h2 className="text-xl font-bold">Two power tips</h2>
+        <h2 className="text-xl font-bold">What's inside</h2>
       </div>
       <p className="text-slate-500 text-sm mb-4">
-        These two shortcuts make Daily Pulse fast — worth knowing.
+        A quick map so you know where everything lives.
       </p>
-      <div className="space-y-3">
-        <Tip
-          icon={<Search size={18} />}
-          shortcut={['⌘', 'K']}
-          title="Command palette"
-          body="Search every routine, note, and reminder. Run actions like New note, switch theme, or jump to any tab."
-          gradient="from-violet-600 to-fuchsia-500"
-        />
-        <Tip
-          icon={<Inbox size={18} />}
-          shortcut={['I']}
-          title="Quick capture"
-          body="Brain-dump from anywhere. Save to inbox, or convert directly into a note, reminder, or routine."
-          gradient="from-cyan-500 to-sky-500"
-        />
-        <Tip
-          icon={<Bell size={18} />}
-          shortcut={[]}
-          title="Smart reminders"
-          body='In the Reminders editor, type "remind me tomorrow at 9 to call mom" — it parses into title + datetime + repeat.'
-          gradient="from-amber-500 to-orange-500"
-        />
+      <div className="grid grid-cols-2 gap-2">
+        {FEATURES.map((f) => {
+          const Icon = f.icon;
+          return (
+            <div
+              key={f.title}
+              className="p-2.5 rounded-xl bg-white/40 dark:bg-white/5 border border-slate-200/70 dark:border-white/10"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <div className={cn('size-6 rounded-md bg-gradient-to-tr text-white grid place-items-center shrink-0', f.gradient)}>
+                  <Icon size={12} />
+                </div>
+                <span className="font-semibold text-[11px] truncate">{f.title}</span>
+              </div>
+              <p className="text-[10px] text-slate-500 leading-relaxed">{f.body}</p>
+            </div>
+          );
+        })}
       </div>
-      <p className="mt-3 text-[11px] text-slate-400">
-        Press <kbd className="px-1.5 py-0.5 rounded border border-slate-300 dark:border-white/10 mx-0.5">?</kbd>
-        anytime to see all shortcuts.
+      <p className="mt-3 text-[11px] text-slate-400 flex items-center gap-1 flex-wrap">
+        <Keyboard size={11} className="shrink-0" />
+        Press <kbd className="px-1.5 py-0.5 rounded border border-slate-300 dark:border-white/10">?</kbd> anytime for the full shortcut sheet ·
+        <kbd className="px-1.5 py-0.5 rounded border border-slate-300 dark:border-white/10">i</kbd> for quick capture ·
+        <kbd className="px-1.5 py-0.5 rounded border border-slate-300 dark:border-white/10">⌘K</kbd> to search.
       </p>
-    </div>
-  );
-}
-
-function Tip({ icon, shortcut, title, body, gradient }) {
-  return (
-    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/40 dark:bg-white/5 border border-slate-200/70 dark:border-white/10">
-      <div className={cn('size-9 rounded-lg bg-gradient-to-tr text-white grid place-items-center shrink-0', gradient)}>
-        {icon}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-semibold text-sm">{title}</span>
-          {shortcut.length > 0 && (
-            <span className="flex gap-1">
-              {shortcut.map((k, i) => (
-                <kbd key={i} className="px-1.5 py-0.5 rounded border border-slate-200 dark:border-white/10 text-[10px] bg-white/60 dark:bg-white/5 font-bold">{k}</kbd>
-              ))}
-            </span>
-          )}
-        </div>
-        <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{body}</p>
-      </div>
     </div>
   );
 }

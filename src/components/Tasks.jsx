@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Pencil, Trash2, X, Save, GripVertical, CheckSquare } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Save, GripVertical, CheckSquare, BellPlus } from 'lucide-react';
 import { uid, PALETTE, colorFor, cn } from '../lib/utils';
 import { useDragReorder } from '../hooks/useDragReorder';
 
@@ -10,7 +10,7 @@ const EMPTY = { name: '', description: '', icon: '✨', time: '', color: 'violet
 
 const CATEGORY_SUGGESTIONS = ['Morning', 'Work', 'Health', 'Learning', 'Evening'];
 
-export default function Tasks({ tasks, setTasks, goals = [], setGoals, confirm, flash }) {
+export default function Tasks({ tasks, setTasks, goals = [], setGoals, confirm, flash, onSetReminder }) {
   const [editing, setEditing] = useState(null);
   const [draft, setDraft] = useState(EMPTY);
   const [targetInput, setTargetInput] = useState('');
@@ -162,10 +162,21 @@ export default function Tasks({ tasks, setTasks, goals = [], setGoals, confirm, 
               />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-wider text-slate-500">Time (optional)</label>
+              <label className="text-xs uppercase tracking-wider text-slate-500 flex items-center justify-between">
+                <span>Time (optional)</span>
+                {draft.time && (
+                  <button
+                    type="button"
+                    className="text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 normal-case tracking-normal"
+                    onClick={() => setDraft({ ...draft, time: '' })}
+                  >
+                    Clear
+                  </button>
+                )}
+              </label>
               <input
+                type="time"
                 className="input mt-1"
-                placeholder="07:00"
                 value={draft.time}
                 onChange={(e) => setDraft({ ...draft, time: e.target.value })}
               />
@@ -391,6 +402,17 @@ export default function Tasks({ tasks, setTasks, goals = [], setGoals, confirm, 
                 </div>
                 {!bulkMode && (
                   <div className="flex items-center gap-1.5">
+                    {onSetReminder && (
+                      <button
+                        className="btn-ghost !px-3 !py-2"
+                        onClick={() => onSetReminder(t)}
+                        aria-label="Set reminder for this routine"
+                        title={t.time ? `Remind me at ${t.time}` : 'Set reminder (pick a time first)'}
+                        disabled={!t.time}
+                      >
+                        <BellPlus size={15} />
+                      </button>
+                    )}
                     <button className="btn-ghost !px-3 !py-2" onClick={() => startEdit(t)} aria-label="Edit">
                       <Pencil size={15} />
                     </button>
