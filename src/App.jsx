@@ -1,0 +1,599 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import Sidebar from './components/Sidebar';
+import Today from './components/Today';
+import Tasks from './components/Tasks';
+import Notes from './components/Notes';
+import Reminders from './components/Reminders';
+import Stats from './components/Stats';
+import Splash from './components/Splash';
+import ReminderAlert from './components/ReminderAlert';
+import CalendarView from './components/CalendarView';
+import GoalsView from './components/GoalsView';
+import Pomodoro from './components/Pomodoro';
+import ReviewPrompt from './components/ReviewPrompt';
+import CommandPalette from './components/CommandPalette';
+import EncryptDialog from './components/EncryptDialog';
+import QuickCapture from './components/QuickCapture';
+import InboxPanel from './components/InboxPanel';
+import Journal from './components/Journal';
+import WeeklySummary from './components/WeeklySummary';
+import OnThisDay from './components/OnThisDay';
+import CheatSheet from './components/CheatSheet';
+import { useLocalStorage, useProfileStorage } from './hooks/useLocalStorage';
+import { useConfirm } from './hooks/useConfirm';
+import { usePullToRefresh } from './hooks/usePullToRefresh';
+import { useCardSpotlight } from './hooks/useCardSpotlight';
+import { useReveal } from './hooks/useReveal';
+import { uid, todayKey } from './lib/utils';
+import { playChime, vibrate } from './lib/chime';
+import { nextOccurrence } from './lib/recurrence';
+import { applyPreset } from './lib/presets';
+import { computeBadgeStates, BADGES } from './lib/badges';
+import { completionsToCSV, downloadCSV } from './lib/csv';
+import { Spinner } from './components/Splash';
+
+const SEED_TASKS = [
+  { id: uid(), name: 'Hydrate (1 glass of water)', icon: '💧', time: '07:00', color: 'cyan', days: [0,1,2,3,4,5,6], category: 'Morning', description: 'Start the day with water' },
+  { id: uid(), name: 'Move your body', icon: '🏃', time: '07:30', color: 'emerald', days: [1,2,3,4,5], category: 'Health', description: '20+ min of movement' },
+  { id: uid(), name: 'Deep work block', icon: '🧠', time: '10:00', color: 'violet', days: [1,2,3,4,5], category: 'Work', description: 'Single-task on what matters' },
+  { id: uid(), name: 'Reflect & journal', icon: '📓', time: '21:00', color: 'amber', days: [0,1,2,3,4,5,6], category: 'Evening', description: '3 lines about the day' },
+];
+
+export default function App() {
+  // ---- Profiles (global) ----
+  const [profiles, setProfiles] = useLocalStorage('dp.profiles.list', [{ id: 'default', name: 'Default', color: 'violet' }]);
+  const [activeProfile, setActiveProfile] = useLocalStorage('dp.profiles.active', 'default');
+
+  // ---- Per-profile data ----
+  const [tasks, setTasks] = useProfileStorage(activeProfile, 'tasks.v1', SEED_TASKS);
+  const [completions, setCompletions] = useProfileStorage(activeProfile, 'completions.v1', {});
+  const [notes, setNotes] = useProfileStorage(activeProfile, 'notes.v1', []);
+  const [reminders, setReminders] = useProfileStorage(activeProfile, 'reminders.v1', []);
+  const [goals, setGoals] = useProfileStorage(activeProfile, 'goals.v1', []);
+  const [reviews, setReviews] = useProfileStorage(activeProfile, 'reviews.v1', {});
+  const [inbox, setInbox] = useProfileStorage(activeProfile, 'inbox.v1', []);
+  const [seenBadges, setSeenBadges] = useProfileStorage(activeProfile, 'seenBadges.v1', []);
+  const [pomodoro, setPomodoro] = useProfileStorage(activeProfile, 'pomodoro.v1', { focus: 25, break: 5 });
+  const [reviewTime, setReviewTime] = useProfileStorage(activeProfile, 'reviewTime.v1', '21:30');
+  const [freezes, setFreezes] = useProfileStorage(activeProfile, 'freezes.v1', []);
+  const [skips, setSkips] = useProfileStorage(activeProfile, 'skips.v1', {});
+  const [routineNotes, setRoutineNotes] = useProfileStorage(activeProfile, 'routineNotes.v1', {});
+  const [weeklyDismissed, setWeeklyDismissed] = useProfileStorage(activeProfile, 'weeklyDismissed.v1', '');
+
+  // ---- Global UI state ----
+  const [active, setActive] = useLocalStorage('dp.active.v1', 'today');
+  const [theme, setTheme] = useLocalStorage('dp.theme.v1', 'light');
+  const [preset, setPreset] = useLocalStorage('dp.preset.v1', 'aurora');
+  const [soundPack, setSoundPack] = useLocalStorage('dp.soundPack.v1', 'chime');
+
+  // ---- Ephemeral state ----
+  const [viewDate, setViewDate] = useState(new Date());
+  const [toast, setToast] = useState(null);
+  const [booting, setBooting] = useState(true);
+  const [alertQueue, setAlertQueue] = useState([]);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [encryptMode, setEncryptMode] = useState(null);
+  const [pendingFocus, setPendingFocus] = useState(null);
+  const [captureOpen, setCaptureOpen] = useState(false);
+  const [cheatOpen, setCheatOpen] = useState(false);
+  const [refreshSpin, setRefreshSpin] = useState(false);
+  const titleTimerRef = useRef(null);
+  const { confirm, dialog: confirmDialog } = useConfirm();
+  useCardSpotlight();
+  useReveal([active, activeProfile]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    applyPreset(preset, theme);
+  }, [theme, preset]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setBooting(false), 700);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Reminder firing
+  useEffect(() => {
+    const tick = () => {
+      const now = Date.now();
+      const due = reminders.filter(
+        (r) => !r.done && !r.fired && r.when && new Date(r.when).getTime() <= now
+      );
+      if (due.length === 0) return;
+      setReminders((prev) =>
+        prev.map((r) => (due.find((d) => d.id === r.id) ? { ...r, fired: true } : r))
+      );
+      setAlertQueue((prev) => [...prev, ...due]);
+      const hasHigh = due.some((r) => r.priority === 'high');
+      playChime(hasHigh ? 'alarm' : soundPack);
+      vibrate(hasHigh ? [400, 200, 400, 200, 600] : [200, 100, 200, 100, 400]);
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        due.forEach((r) => {
+          try {
+            new Notification((r.priority === 'high' ? '🚨 ' : '⏰ ') + r.title, {
+              body: r.notes || 'Reminder is due',
+              tag: r.id,
+            });
+          } catch { /* ignore */ }
+        });
+      }
+    };
+    tick();
+    const t = setInterval(tick, 5000);
+    return () => clearInterval(t);
+  }, [reminders, setReminders, soundPack]);
+
+  // Review prompt
+  useEffect(() => {
+    const check = () => {
+      const k = todayKey();
+      if (reviews[k]) return;
+      const [h, m] = (reviewTime || '21:30').split(':').map(Number);
+      const now = new Date();
+      const target = new Date();
+      target.setHours(h || 21, m || 30, 0, 0);
+      if (now >= target) setReviewOpen(true);
+    };
+    check();
+    const t = setInterval(check, 60_000);
+    return () => clearInterval(t);
+  }, [reviews, reviewTime]);
+
+  // Title flash
+  useEffect(() => {
+    if (alertQueue.length === 0) {
+      if (titleTimerRef.current) {
+        clearInterval(titleTimerRef.current);
+        titleTimerRef.current = null;
+      }
+      document.title = 'Daily Pulse — Track your routines, notes & reminders';
+      return;
+    }
+    let on = false;
+    titleTimerRef.current = setInterval(() => {
+      on = !on;
+      document.title = on ? '⏰ Reminder is due' : 'Daily Pulse';
+    }, 900);
+    return () => { if (titleTimerRef.current) clearInterval(titleTimerRef.current); };
+  }, [alertQueue.length]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const onKey = (e) => {
+      const inField = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) || e.target.isContentEditable;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen(true);
+        return;
+      }
+      if (inField) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const k = e.key.toLowerCase();
+      const map = { t: 'today', r: 'tasks', g: 'goals', c: 'calendar', n: 'notes', m: 'reminders', s: 'stats', j: 'journal' };
+      if (map[k]) { e.preventDefault(); setActive(map[k]); }
+      if (k === 'i') { e.preventDefault(); setCaptureOpen(true); }
+      if (e.key === '?') { e.preventDefault(); setCheatOpen(true); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Compute badges
+  const badgeStates = useMemo(
+    () => computeBadgeStates({ tasks, completions, notes, reminders, goals, reviews, freezes, skips }),
+    [tasks, completions, notes, reminders, goals, reviews, freezes, skips]
+  );
+  const earnedBadges = useMemo(() => badgeStates.filter((b) => b.earned).map((b) => b.id), [badgeStates]);
+
+  useEffect(() => {
+    const newlyEarned = earnedBadges.filter((id) => !seenBadges.includes(id));
+    if (newlyEarned.length === 0) return;
+    const badge = BADGES.find((b) => b.id === newlyEarned[0]);
+    if (badge) flash(`${badge.icon} Achievement unlocked: ${badge.name}`);
+    setSeenBadges(earnedBadges);
+  }, [earnedBadges]);
+
+  // ---- Alert handlers ----
+  const currentAlert = alertQueue[0] || null;
+
+  const dismissAlert = () => {
+    if (currentAlert?.repeat && currentAlert.repeat !== 'none') {
+      const next = nextOccurrence(currentAlert.when, currentAlert.repeat);
+      if (next) {
+        setReminders((prev) => prev.map((r) => (r.id === currentAlert.id ? { ...r, when: next, fired: false } : r)));
+      }
+    }
+    setAlertQueue((q) => q.slice(1));
+  };
+
+  const completeAlert = () => {
+    if (!currentAlert) return;
+    setReminders((prev) =>
+      prev.map((r) => {
+        if (r.id !== currentAlert.id) return r;
+        if (r.repeat && r.repeat !== 'none') {
+          const next = nextOccurrence(r.when, r.repeat);
+          return next ? { ...r, when: next, fired: false } : { ...r, done: true };
+        }
+        return { ...r, done: true };
+      })
+    );
+    setAlertQueue((q) => q.slice(1));
+    flash(currentAlert.repeat && currentAlert.repeat !== 'none' ? 'Rescheduled' : 'Reminder marked done');
+  };
+
+  const snoozeAlert = (minutes) => {
+    if (!currentAlert) return;
+    const newWhen = new Date(Date.now() + minutes * 60_000).toISOString();
+    setReminders((prev) => prev.map((r) => (r.id === currentAlert.id ? { ...r, when: newWhen, fired: false } : r)));
+    setAlertQueue((q) => q.slice(1));
+    flash(`Snoozed for ${minutes} min`);
+  };
+
+  // ---- I/O ----
+  const exportAll = () => {
+    const blob = new Blob(
+      [JSON.stringify({ tasks, completions, notes, reminders, goals, reviews, inbox, freezes, skips, routineNotes, profile: profiles.find((p) => p.id === activeProfile)?.name, exportedAt: new Date().toISOString() }, null, 2)],
+      { type: 'application/json' }
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `daily-pulse-${activeProfile}-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    flash('Exported your data');
+  };
+
+  const exportCsv = () => {
+    if (Object.keys(completions).length === 0) {
+      flash('No completion data to export', true);
+      return;
+    }
+    const csv = completionsToCSV(tasks, completions);
+    downloadCSV(`daily-pulse-completions-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+    flash('CSV exported');
+  };
+
+  const importAll = async (file) => {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      applyImportedData(data);
+      flash('Imported successfully');
+    } catch {
+      flash('Could not read that file', true);
+    }
+  };
+
+  const applyImportedData = (data) => {
+    if (Array.isArray(data.tasks)) setTasks(data.tasks);
+    if (data.completions && typeof data.completions === 'object') setCompletions(data.completions);
+    if (Array.isArray(data.notes)) setNotes(data.notes);
+    if (Array.isArray(data.reminders)) setReminders(data.reminders);
+    if (Array.isArray(data.goals)) setGoals(data.goals);
+    if (data.reviews && typeof data.reviews === 'object') setReviews(data.reviews);
+    if (Array.isArray(data.inbox)) setInbox(data.inbox);
+    if (Array.isArray(data.freezes)) setFreezes(data.freezes);
+    if (data.skips && typeof data.skips === 'object') setSkips(data.skips);
+    if (data.routineNotes && typeof data.routineNotes === 'object') setRoutineNotes(data.routineNotes);
+  };
+
+  const getExportPlaintext = () => JSON.stringify({ tasks, completions, notes, reminders, goals, reviews, inbox, freezes, skips, routineNotes });
+
+  const printToday = () => {
+    setActive('today');
+    setTimeout(() => window.print(), 100);
+  };
+
+  // Pomodoro auto-check
+  const completeTaskForToday = (taskId) => {
+    const k = todayKey();
+    setCompletions((prev) => {
+      const day = { ...(prev[k] || {}) };
+      const task = tasks.find((t) => t.id === taskId);
+      if (task && task.goalCount > 0) {
+        const cur = typeof day[taskId] === 'number' ? day[taskId] : 0;
+        day[taskId] = cur + 1;
+      } else {
+        day[taskId] = new Date().toISOString();
+      }
+      return { ...prev, [k]: day };
+    });
+    flash('Routine checked');
+  };
+
+  // ---- Toast (with optional undo) ----
+  const toastTimerRef = useRef(null);
+  const flash = (msg, isError = false, undo = null) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ msg, isError, id: Date.now(), undo });
+    toastTimerRef.current = setTimeout(() => setToast(null), undo ? 6000 : 2400);
+  };
+  const flashWithTimer = flash; // alias for backward-compat with newer call sites
+
+  // ---- Inbox ----
+  const saveToInbox = (text) => {
+    if (!text?.trim()) return;
+    setInbox((prev) => [{ id: uid(), text: text.trim(), createdAt: Date.now() }, ...prev]);
+    flashWithTimer('Saved to inbox');
+  };
+  const deleteInboxItem = (item) => setInbox((prev) => prev.filter((x) => x.id !== item.id));
+  const captureToNote = (text) => {
+    const t = (text || '').trim();
+    if (!t) return;
+    const now = Date.now();
+    const firstLine = t.split('\n')[0].slice(0, 80);
+    const body = t.split('\n').slice(1).join('\n');
+    setNotes((prev) => [{ id: uid(), title: firstLine, body, color: 'sun', pinned: false, tags: [], createdAt: now, updatedAt: now }, ...prev]);
+    flashWithTimer('Saved as note');
+  };
+  const captureToReminder = (text) => {
+    const t = (text || '').trim();
+    if (!t) return;
+    const when = new Date(Date.now() + 30 * 60_000).toISOString();
+    setReminders((prev) => [{ id: uid(), title: t.slice(0, 100), when, notes: '', repeat: 'none', priority: 'medium', done: false, fired: false }, ...prev]);
+    flashWithTimer('Reminder set in 30 min — edit to adjust');
+    setActive('reminders');
+  };
+  const captureToRoutine = (text) => {
+    const t = (text || '').trim();
+    if (!t) return;
+    setTasks((prev) => [...prev, { id: uid(), name: t.slice(0, 80), description: '', icon: '✨', time: '', color: 'violet', days: [0,1,2,3,4,5,6], category: '', goalCount: 0, unit: '' }]);
+    flashWithTimer('Routine added');
+    setActive('tasks');
+  };
+  const convertInboxToNote = (item) => { captureToNote(item.text); deleteInboxItem(item); };
+  const convertInboxToReminder = (item) => { captureToReminder(item.text); deleteInboxItem(item); };
+  const convertInboxToRoutine = (item) => { captureToRoutine(item.text); deleteInboxItem(item); };
+
+  // ---- Profiles ----
+  const switchProfile = (id) => {
+    setActiveProfile(id);
+    flashWithTimer(`Switched to ${profiles.find((p) => p.id === id)?.name || id}`);
+  };
+  const createProfile = ({ name, color }) => {
+    const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 20) + '-' + uid().slice(0, 4);
+    const newP = { id, name, color };
+    setProfiles((prev) => [...prev, newP]);
+    setActiveProfile(id);
+    flashWithTimer(`Profile "${name}" created`);
+  };
+  const deleteProfile = async (id) => {
+    if (id === activeProfile) {
+      flashWithTimer('Switch to a different profile first', true);
+      return;
+    }
+    const target = profiles.find((p) => p.id === id);
+    const ok = await confirm({
+      title: `Delete profile "${target?.name}"?`,
+      message: 'All routines, notes, reminders, and history for this profile will be permanently removed.',
+      confirmLabel: 'Delete profile',
+    });
+    if (!ok) return;
+    // Remove all keys for this profile
+    try {
+      for (const k of Object.keys(localStorage)) {
+        if (k.startsWith(`dp.profiles.${id}.`)) localStorage.removeItem(k);
+      }
+    } catch { /* ignore */ }
+    setProfiles((prev) => prev.filter((p) => p.id !== id));
+    flashWithTimer(`Profile "${target?.name}" deleted`);
+  };
+
+  // ---- Pull-to-refresh ----
+  const handleRefresh = () => {
+    setRefreshSpin(true);
+    // Force re-evaluation of due reminders
+    setReminders((prev) => prev.map((r) => ({ ...r })));
+    setTimeout(() => setRefreshSpin(false), 800);
+    flashWithTimer('Refreshed');
+  };
+  const ptr = usePullToRefresh(handleRefresh);
+
+  // ---- Palette helpers ----
+  const navigateAndFocus = (id, focus) => {
+    setActive(id);
+    if (focus) setPendingFocus(focus);
+  };
+  useEffect(() => {
+    if (!pendingFocus) return;
+    const t = setTimeout(() => {
+      if (pendingFocus === 'note') document.querySelector('[data-action="new-note"]')?.click();
+      else if (pendingFocus === 'reminder') document.querySelector('[data-action="new-reminder"]')?.click();
+      setPendingFocus(null);
+    }, 60);
+    return () => clearTimeout(t);
+  }, [pendingFocus, active]);
+
+  // Today completion stats for review prompt
+  const todayCompletionStats = (() => {
+    const dow = new Date().getDay();
+    const dayTasks = tasks.filter((t) => !t.days || t.days.length === 0 || t.days.includes(dow));
+    const c = completions[todayKey()] || {};
+    return { completed: dayTasks.filter((t) => c[t.id]).length, total: dayTasks.length };
+  })();
+
+  return (
+    <>
+      {booting && <Splash />}
+
+      {(ptr.pull > 0 || refreshSpin) && (
+        <div
+          className="fixed top-0 left-0 right-0 z-[60] flex items-center justify-center text-violet-500 transition-all pointer-events-none"
+          style={{ height: refreshSpin ? 50 : Math.min(ptr.pull, 80), opacity: refreshSpin ? 1 : Math.min(1, ptr.pull / 60) }}
+        >
+          <div className={ptr.ready || refreshSpin ? 'animate-spin' : ''}><Spinner size={20} /></div>
+        </div>
+      )}
+
+      <div className="min-h-screen p-3 lg:p-6 pb-24 lg:pb-6">
+        <div className="mx-auto max-w-7xl flex flex-col lg:flex-row gap-3 lg:gap-6">
+          <Sidebar
+            active={active}
+            setActive={setActive}
+            theme={theme}
+            setTheme={setTheme}
+            preset={preset}
+            setPreset={setPreset}
+            soundPack={soundPack}
+            setSoundPack={setSoundPack}
+            onExport={exportAll}
+            onImport={importAll}
+            onCsvExport={exportCsv}
+            onEncrypt={() => setEncryptMode('encrypt')}
+            onDecrypt={() => setEncryptMode('decrypt')}
+            onPrint={printToday}
+            onOpenPalette={() => setPaletteOpen(true)}
+            onOpenCapture={() => setCaptureOpen(true)}
+            onOpenCheatSheet={() => setCheatOpen(true)}
+            inboxCount={inbox.length}
+            profiles={profiles}
+            activeProfile={activeProfile}
+            onSwitchProfile={switchProfile}
+            onCreateProfile={createProfile}
+            onDeleteProfile={deleteProfile}
+          />
+          <main className="flex-1 min-w-0">
+            <div key={active + activeProfile} className="animate-fade-in space-y-6">
+              {active === 'today' && (
+                <>
+                  <WeeklySummary
+                    tasks={tasks}
+                    completions={completions}
+                    notes={notes}
+                    reviews={reviews}
+                    dismissed={weeklyDismissed}
+                    setDismissed={setWeeklyDismissed}
+                  />
+                  <OnThisDay tasks={tasks} completions={completions} notes={notes} reviews={reviews} />
+                  {inbox.length > 0 && (
+                    <InboxPanel
+                      inbox={inbox}
+                      onConvertNote={convertInboxToNote}
+                      onConvertReminder={convertInboxToReminder}
+                      onConvertRoutine={convertInboxToRoutine}
+                      onDelete={deleteInboxItem}
+                    />
+                  )}
+                  <Today
+                    tasks={tasks}
+                    completions={completions}
+                    setCompletions={setCompletions}
+                    viewDate={viewDate}
+                    setViewDate={setViewDate}
+                    freezes={freezes}
+                    setFreezes={setFreezes}
+                    skips={skips}
+                    setSkips={setSkips}
+                    routineNotes={routineNotes}
+                    setRoutineNotes={setRoutineNotes}
+                  />
+                  <Pomodoro tasks={tasks} onCompleteRoutine={completeTaskForToday} settings={pomodoro} setSettings={setPomodoro} />
+                </>
+              )}
+              {active === 'tasks' && (
+                <Tasks tasks={tasks} setTasks={setTasks} goals={goals} setGoals={setGoals} confirm={confirm} flash={flashWithTimer} />
+              )}
+              {active === 'goals' && (
+                <GoalsView goals={goals} setGoals={setGoals} tasks={tasks} setTasks={setTasks} completions={completions} confirm={confirm} flash={flashWithTimer} />
+              )}
+              {active === 'calendar' && (
+                <CalendarView tasks={tasks} completions={completions} notes={notes} reminders={reminders} onJumpToDay={(d) => setViewDate(d)} setActive={setActive} />
+              )}
+              {active === 'notes' && (
+                <Notes notes={notes} setNotes={setNotes} confirm={confirm} flash={flashWithTimer} />
+              )}
+              {active === 'reminders' && (
+                <Reminders reminders={reminders} setReminders={setReminders} confirm={confirm} flash={flashWithTimer} />
+              )}
+              {active === 'journal' && (
+                <Journal reviews={reviews} tasks={tasks} completions={completions} />
+              )}
+              {active === 'stats' && (
+                <Stats tasks={tasks} completions={completions} badgeStates={badgeStates} reviews={reviews} />
+              )}
+            </div>
+
+            <footer className="mt-10 mb-4 text-center text-xs text-slate-400 no-print">
+              Built with React · Press <kbd className="px-1.5 py-0.5 rounded border border-slate-300 dark:border-white/10 mx-1">⌘K</kbd> to search · <kbd className="px-1.5 py-0.5 rounded border border-slate-300 dark:border-white/10 mx-1">?</kbd> for shortcuts
+            </footer>
+          </main>
+        </div>
+
+        {toast && (
+          <div
+            key={toast.id}
+            className={`fixed bottom-24 lg:bottom-6 left-1/2 -translate-x-1/2 px-5 py-3 rounded-xl shadow-2xl text-sm font-medium animate-pop-in z-[80] no-print flex items-center gap-3 ${
+              toast.isError ? 'bg-rose-500 text-white' : 'bg-gradient-to-tr from-violet-600 to-cyan-500 text-white shadow-violet-500/30'
+            }`}
+          >
+            <span>{toast.msg}</span>
+            {toast.undo && (
+              <button
+                onClick={() => { toast.undo(); setToast(null); }}
+                className="underline underline-offset-2 font-bold hover:opacity-80"
+              >
+                Undo
+              </button>
+            )}
+          </div>
+        )}
+
+        {confirmDialog}
+
+        <ReminderAlert
+          alert={currentAlert}
+          onDismiss={dismissAlert}
+          onSnooze={snoozeAlert}
+          onComplete={completeAlert}
+        />
+
+        <CommandPalette
+          open={paletteOpen}
+          onClose={() => setPaletteOpen(false)}
+          navigate={(id) => setActive(id)}
+          tasks={tasks}
+          notes={notes}
+          reminders={reminders}
+          theme={theme}
+          setTheme={setTheme}
+          onNewNote={() => navigateAndFocus('notes', 'note')}
+          onNewReminder={() => navigateAndFocus('reminders', 'reminder')}
+          onQuickCapture={() => setCaptureOpen(true)}
+          onExport={exportAll}
+          onPrint={printToday}
+        />
+
+        <ReviewPrompt
+          open={reviewOpen}
+          onClose={() => setReviewOpen(false)}
+          reviews={reviews}
+          setReviews={setReviews}
+          completionStats={todayCompletionStats}
+        />
+
+        <EncryptDialog
+          open={!!encryptMode}
+          mode={encryptMode}
+          onClose={() => setEncryptMode(null)}
+          getPlaintext={getExportPlaintext}
+          onDecrypted={applyImportedData}
+          flash={flashWithTimer}
+        />
+
+        <QuickCapture
+          open={captureOpen}
+          onClose={() => setCaptureOpen(false)}
+          onSaveInbox={saveToInbox}
+          onConvertNote={captureToNote}
+          onConvertReminder={captureToReminder}
+          onConvertRoutine={captureToRoutine}
+        />
+
+        <CheatSheet open={cheatOpen} onClose={() => setCheatOpen(false)} />
+      </div>
+    </>
+  );
+}
