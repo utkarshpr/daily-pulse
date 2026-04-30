@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, ArrowRight, X, Target, Check, Search, Inbox, Keyboard, Bell, Lightbulb, Calendar, ListChecks, CalendarDays, StickyNote, BookOpen, BarChart3, User, Lock, Timer, Smartphone, Wand2, Clock, Repeat, Hash, AlertTriangle } from 'lucide-react';
+import { Sparkles, ArrowRight, X, Target, Check, Search, Inbox, Keyboard, Bell, Lightbulb, Calendar, ListChecks, CalendarDays, StickyNote, BookOpen, BarChart3, User, Lock, Timer, Smartphone, Wand2, Clock, Repeat, Hash, AlertTriangle, Globe, Newspaper, Snowflake } from 'lucide-react';
 import { parseSmart } from '../lib/nlparse';
 import { uid, cn } from '../lib/utils';
 import { suggestHabits, STARTER_ROUTINES } from '../lib/habitSuggestions';
@@ -96,8 +96,9 @@ export default function Onboarding({ open, onClose, setTasks, setGoals, flash })
             />
           )}
           {step === 3 && <SmartDemoStep />}
-          {step === 4 && <FeaturesStep />}
-          {step === 5 && <DoneStep goalText={goalText} count={picked.size} />}
+          {step === 4 && <FeaturesStepCore />}
+          {step === 5 && <FeaturesStepBeyond />}
+          {step === 6 && <DoneStep goalText={goalText} count={picked.size} />}
         </div>
 
         <div className="mt-6 flex items-center justify-between gap-2">
@@ -121,7 +122,7 @@ export default function Onboarding({ open, onClose, setTasks, setGoals, flash })
   );
 }
 
-const STEPS = ['welcome', 'goal', 'routines', 'smart', 'tour', 'done'];
+const STEPS = ['welcome', 'goal', 'routines', 'smart', 'tour-core', 'tour-beyond', 'done'];
 
 function Progress({ step, total }) {
   return (
@@ -277,6 +278,7 @@ function RoutinesStep({ detected, offered, picked, onTogglePick }) {
 const SMART_EXAMPLES = [
   { kind: 'reminder', phrase: 'remind me to call manav tomorrow at 8' },
   { kind: 'reminder', phrase: 'kal subah 7 baje yoga' },
+  { kind: 'reminder', phrase: 'parso dopahar meeting' },
   { kind: 'reminder', phrase: 'pay rent on the 5th' },
   { kind: 'reminder', phrase: 'in 30 mins check the oven' },
   { kind: 'routine', phrase: 'har roz 8 glass paani peena' },
@@ -364,24 +366,37 @@ function SmartDemoStep() {
         ))}
       </div>
       <p className="mt-3 text-[10px] text-slate-400 leading-relaxed">
-        Mix English + Hinglish freely · "kal", "subah", "har roz", "baje", "@gym", "every other week" all work.
+        Mix English + Hinglish freely · <code>kal</code>, <code>parso</code>, <code>subah</code>, <code>dopahar</code>, <code>shaam</code>, <code>raat</code>, <code>har roz</code>, <code>baje</code>, <code>@gym</code> and <code>every other week</code> all work — common typos (<code>subha</code>, <code>dupahar</code>, <code>rat</code>, <code>sham</code>) too.
         Quantities like <code>5 km</code>, <code>20 lbs</code>, <code>8 glasses</code>, <code>30 pages</code> are recognized.
+        Type a one-off date on the Routines tab (or a recurring habit on Reminders) and we'll suggest switching to the right surface.
       </p>
     </div>
   );
 }
 
-const FEATURES = [
-  { icon: Wand2, title: 'Smart input', body: 'Type Hindi or English: "kal subah 8 baje yoga", "har roz 8 glass paani". The parser fills the form.', gradient: 'from-violet-600 via-fuchsia-500 to-cyan-500' },
-  { icon: Calendar, title: 'Today', body: 'Streaks, weekly heat strip, swipe-to-check, drag-reorder.', gradient: 'from-violet-500 to-fuchsia-500' },
+// Day-to-day features — the surfaces a user touches most. New for this
+// release: a Smart-input cross-tab hint that suggests Reminder-vs-Routine,
+// and Calendar feeds for subscribing to public .ics holiday/personal feeds.
+const FEATURES_CORE = [
+  { icon: Wand2, title: 'Smart input', body: 'Type Hindi or English: "kal subah 8 baje yoga", "har roz 8 glass paani". Typos like "rat", "subha", "dupahar" all parse. If you type a one-off date on Routines (or a recurring habit on Reminders), we suggest switching to the right surface.', gradient: 'from-violet-600 via-fuchsia-500 to-cyan-500' },
+  { icon: Calendar, title: 'Today', body: 'Streaks, weekly heat strip (calendar week, today highlighted), swipe-to-check, drag-reorder. Time chip shows AM/PM.', gradient: 'from-violet-500 to-fuchsia-500' },
   { icon: ListChecks, title: 'Routines', body: 'Habits with time, days, counts, colors. One-tap "remind me" turns any routine into a daily reminder.', gradient: 'from-cyan-500 to-sky-500' },
-  { icon: Target, title: 'Goals', body: 'Link routines, watch 30-day rolling progress.', gradient: 'from-emerald-500 to-teal-500' },
-  { icon: CalendarDays, title: 'Calendar', body: 'Month grid: completion, notes & reminders by day.', gradient: 'from-amber-500 to-orange-500' },
-  { icon: StickyNote, title: 'Notes', body: 'Markdown, tags, pinning, voice dictation. Templates for journal, meetings, decisions, ideas.', gradient: 'from-rose-500 to-pink-500' },
   { icon: Bell, title: 'Reminders', body: 'Date + time picker, repeats, smart parser. Export to Apple/Google Calendar via .ics.', gradient: 'from-indigo-500 to-blue-500' },
-  { icon: BookOpen, title: 'Journal', body: 'Daily reflection prompt logs by date for review later.', gradient: 'from-violet-500 to-purple-500' },
-  { icon: BarChart3, title: 'Stats & badges', body: 'Charts, streak insights, achievement unlocks.', gradient: 'from-cyan-500 to-emerald-500' },
+  { icon: CalendarDays, title: 'Calendar', body: 'Month grid: routine completion, notes, reminders. Holiday names show as colored chips on the day; click any date to see its full breakdown.', gradient: 'from-amber-500 to-orange-500' },
+  { icon: Globe, title: 'Calendar feeds', body: 'Subscribe to public .ics calendars — holidays preset (India / US / UK) or paste your own iCloud / Google share link. Imports run client-side; refreshes through a free CORS proxy.', gradient: 'from-cyan-500 to-blue-500' },
+  { icon: Target, title: 'Goals', body: 'Link routines, watch 30-day rolling progress.', gradient: 'from-emerald-500 to-teal-500' },
   { icon: Timer, title: 'Pomodoro', body: 'Focus timer that can auto-check a linked routine.', gradient: 'from-rose-500 to-orange-500' },
+];
+
+// Reflective + power-user surfaces. New: Journal write-in-place + 90-day
+// streak grid, the News page (Guardian + Video / cricket-first), and the
+// full-app Freeze overlay.
+const FEATURES_BEYOND = [
+  { icon: BookOpen, title: 'Journal', body: 'Write today\'s entry in-place, edit any past entry, see your streak and a 90-day consistency grid.', gradient: 'from-violet-500 to-purple-500' },
+  { icon: StickyNote, title: 'Notes', body: 'Markdown, tags, pinning, voice dictation. Templates for journal, meetings, decisions, ideas.', gradient: 'from-rose-500 to-pink-500' },
+  { icon: Newspaper, title: 'News', body: 'Curated headlines + video (Guardian sections + YouTube channels: News / Auto / Sports / World — Sports leans cricket: ESPNcricinfo, ICC, IPL, Cricbuzz, BCCI). Cached 30 min, in-app filter.', gradient: 'from-rose-500 to-orange-500' },
+  { icon: BarChart3, title: 'Stats & badges', body: 'Charts, streak insights, achievement unlocks.', gradient: 'from-cyan-500 to-emerald-500' },
+  { icon: Snowflake, title: 'Freeze day', body: 'Vacation or sick? Freeze today — the whole app frosts over and the streak is preserved. Only the blinking Freeze button (and News) stay clickable; click again to thaw.', gradient: 'from-cyan-500 to-sky-500' },
   { icon: Inbox, title: 'Quick capture', body: 'Brain-dump → convert into note, reminder, or routine.', gradient: 'from-amber-500 to-pink-500' },
   { icon: Search, title: 'Command palette', body: '⌘K to jump anywhere & run any action.', gradient: 'from-violet-500 to-cyan-500' },
   { icon: User, title: 'Profiles', body: 'Separate spaces (e.g. Work / Home) with their own data.', gradient: 'from-rose-500 to-orange-500' },
@@ -389,37 +404,63 @@ const FEATURES = [
   { icon: Smartphone, title: 'Install as PWA', body: 'Works offline; reminders ring after closing the tab.', gradient: 'from-indigo-500 to-blue-500' },
 ];
 
-function FeaturesStep() {
+function FeatureGrid({ features }) {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {features.map((f) => {
+        const Icon = f.icon;
+        return (
+          <div
+            key={f.title}
+            className="p-2.5 rounded-xl bg-white/40 dark:bg-white/5 border border-slate-200/70 dark:border-white/10"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <div className={cn('size-6 rounded-md bg-gradient-to-tr text-white grid place-items-center shrink-0', f.gradient)}>
+                <Icon size={12} />
+              </div>
+              <span className="font-semibold text-[11px] truncate">{f.title}</span>
+            </div>
+            <p className="text-[10px] text-slate-500 leading-relaxed">{f.body}</p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function FeaturesStepCore() {
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-3">
+        <div className="size-10 rounded-xl bg-gradient-to-tr from-violet-500 to-cyan-500 grid place-items-center text-white shadow">
+          <Sparkles size={18} />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold leading-tight">What's inside · day-to-day</h2>
+          <p className="text-[11px] text-slate-500">The surfaces you'll use every day.</p>
+        </div>
+      </div>
+      <FeatureGrid features={FEATURES_CORE} />
+      <p className="mt-3 text-[11px] text-slate-400 italic">
+        Next page: reflection, news, freeze day, and power-user tools.
+      </p>
+    </div>
+  );
+}
+
+function FeaturesStepBeyond() {
   return (
     <div>
       <div className="flex items-center gap-3 mb-3">
         <div className="size-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-500 grid place-items-center text-white shadow">
           <Sparkles size={18} />
         </div>
-        <h2 className="text-xl font-bold">What's inside</h2>
+        <div>
+          <h2 className="text-xl font-bold leading-tight">What's inside · beyond</h2>
+          <p className="text-[11px] text-slate-500">Reflection, discovery, and power-user surfaces.</p>
+        </div>
       </div>
-      <p className="text-slate-500 text-sm mb-4">
-        A quick map so you know where everything lives.
-      </p>
-      <div className="grid grid-cols-2 gap-2">
-        {FEATURES.map((f) => {
-          const Icon = f.icon;
-          return (
-            <div
-              key={f.title}
-              className="p-2.5 rounded-xl bg-white/40 dark:bg-white/5 border border-slate-200/70 dark:border-white/10"
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <div className={cn('size-6 rounded-md bg-gradient-to-tr text-white grid place-items-center shrink-0', f.gradient)}>
-                  <Icon size={12} />
-                </div>
-                <span className="font-semibold text-[11px] truncate">{f.title}</span>
-              </div>
-              <p className="text-[10px] text-slate-500 leading-relaxed">{f.body}</p>
-            </div>
-          );
-        })}
-      </div>
+      <FeatureGrid features={FEATURES_BEYOND} />
       <p className="mt-3 text-[11px] text-slate-400 flex items-center gap-1 flex-wrap">
         <Keyboard size={11} className="shrink-0" />
         Press <kbd className="px-1.5 py-0.5 rounded border border-slate-300 dark:border-white/10">?</kbd> anytime for the full shortcut sheet ·

@@ -16,6 +16,8 @@ import EncryptDialog from './components/EncryptDialog';
 import QuickCapture from './components/QuickCapture';
 import InboxPanel from './components/InboxPanel';
 import Journal from './components/Journal';
+import News from './components/News';
+import FreezeOverlay from './components/FreezeOverlay';
 import WeeklySummary from './components/WeeklySummary';
 import OnThisDay from './components/OnThisDay';
 import CheatSheet from './components/CheatSheet';
@@ -69,6 +71,8 @@ export default function App() {
   const [skips, setSkips] = useProfileStorage(activeProfile, 'skips.v1', {});
   const [routineNotes, setRoutineNotes] = useProfileStorage(activeProfile, 'routineNotes.v1', {});
   const [weeklyDismissed, setWeeklyDismissed] = useProfileStorage(activeProfile, 'weeklyDismissed.v1', '');
+  // External calendar subscriptions — each feed: { id, name, url?, source: 'url'|'file', events: [...], importedAt, color }.
+  const [icsFeeds, setIcsFeeds] = useProfileStorage(activeProfile, 'icsFeeds.v1', []);
 
   // ---- Global UI state ----
   const [active, setActive] = useLocalStorage('dp.active.v1', 'today');
@@ -84,6 +88,10 @@ export default function App() {
   const [booting, setBooting] = useState(true);
   const [alertQueue, setAlertQueue] = useState([]);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  // Hand-off when SmartInput on one tab detects the input belongs on the
+  // other (e.g. a one-shot date typed on Routines → suggest Reminders).
+  // Shape: { target: 'reminder' | 'routine', raw: string, parsed: object }.
+  const [pendingCapture, setPendingCapture] = useState(null);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [encryptMode, setEncryptMode] = useState(null);
   const [pendingFocus, setPendingFocus] = useState(null);
@@ -348,6 +356,12 @@ export default function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  // Reset scroll position whenever the user switches tabs. Without this, a
+  // long Today page leaves you mid-scroll when you click News, etc.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [active]);
 
   // Compute badges
   const badgeStates = useMemo(
@@ -622,9 +636,15 @@ export default function App() {
     return { completed: dayTasks.filter((t) => c[t.id]).length, total: dayTasks.length };
   })();
 
+  // True only when *today* (live wall-clock day) is in the frozen set.
+  // Freezing past days is retrospective and shouldn't paralyze the live UI.
+  const isFrozenToday = freezes.includes(todayKey());
+
   return (
     <>
       {booting && <Splash />}
+
+      <FreezeOverlay active={isFrozenToday} />
 
       <RouteLoader route={active + activeProfile} />
 
@@ -681,6 +701,7 @@ export default function App() {
             onCreateProfile={createProfile}
             onRenameProfile={renameProfile}
             onDeleteProfile={deleteProfile}
+            frozen={isFrozenToday}
           />
           <main className="flex-1 min-w-0">
             <div key={active + activeProfile} className="animate-fade-in space-y-6">
@@ -733,22 +754,60 @@ export default function App() {
                 </>
               )}
               {active === 'tasks' && (
-                <Tasks tasks={tasks} setTasks={setTasks} goals={goals} setGoals={setGoals} confirm={confirm} flash={flashWithTimer} onSetReminder={reminderFromRoutine} />
+                <Tasks
+                  tasks={tasks}
+                  setTasks={setTasks}
+                  goals={goals}
+                  setGoals={setGoals}
+                  confirm={confirm}
+                  flash={flashWithTimer}
+                  onSetReminder={reminderFromRoutine}
+                  pendingCapture={pendingCapture}
+                  clearPendingCapture={() => setPendingCapture(null)}
+                  onSwitchToReminder={(raw, parsed) => {
+                    setPendingCapture({ target: 'reminder', raw, parsed });
+                    setActive('reminders');
+                  }}
+                />
               )}
               {active === 'goals' && (
                 <GoalsView goals={goals} setGoals={setGoals} tasks={tasks} setTasks={setTasks} completions={completions} confirm={confirm} flash={flashWithTimer} />
               )}
               {active === 'calendar' && (
-                <CalendarView tasks={tasks} completions={completions} notes={notes} reminders={reminders} onJumpToDay={(d) => setViewDate(d)} setActive={setActive} />
+                <CalendarView
+                  tasks={tasks}
+                  completions={completions}
+                  notes={notes}
+                  reminders={reminders}
+                  onJumpToDay={(d) => setViewDate(d)}
+                  setActive={setActive}
+                  icsFeeds={icsFeeds}
+                  setIcsFeeds={setIcsFeeds}
+                  flash={flashWithTimer}
+                />
               )}
               {active === 'notes' && (
                 <Notes notes={notes} setNotes={setNotes} confirm={confirm} flash={flashWithTimer} />
               )}
               {active === 'reminders' && (
-                <Reminders reminders={reminders} setReminders={setReminders} confirm={confirm} flash={flashWithTimer} />
+                <Reminders
+                  reminders={reminders}
+                  setReminders={setReminders}
+                  confirm={confirm}
+                  flash={flashWithTimer}
+                  pendingCapture={pendingCapture}
+                  clearPendingCapture={() => setPendingCapture(null)}
+                  onSwitchToRoutine={(raw, parsed) => {
+                    setPendingCapture({ target: 'routine', raw, parsed });
+                    setActive('tasks');
+                  }}
+                />
               )}
               {active === 'journal' && (
-                <Journal reviews={reviews} tasks={tasks} completions={completions} />
+                <Journal reviews={reviews} setReviews={setReviews} tasks={tasks} completions={completions} flash={flashWithTimer} />
+              )}
+              {active === 'news' && (
+                <News flash={flashWithTimer} />
               )}
               {active === 'stats' && (
                 <Stats tasks={tasks} completions={completions} badgeStates={badgeStates} reviews={reviews} />

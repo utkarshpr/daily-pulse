@@ -1,11 +1,21 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Check, Flame, Sparkles, ChevronLeft, ChevronRight, Calendar, Plus, Minus, Snowflake, MoreHorizontal, StickyNote, Pause, Play } from 'lucide-react';
+import { Check, Flame, Sparkles, ChevronLeft, ChevronRight, Calendar, Plus, Minus, Snowflake, MoreHorizontal, StickyNote, Pause, Play, Clock } from 'lucide-react';
 import { todayKey, formatLong, addDays, sameDay, colorFor, cn, isComplete, isQuant, getCount, dayTasksFor, computeStreak } from '../lib/utils';
 import ProgressRing from './ProgressRing';
 import { celebrate } from '../lib/celebrate';
 import { useSwipe } from '../hooks/useSwipe';
 import RoutineMenu from './RoutineMenu';
 import Ticker from './Ticker';
+
+// "08:00" → "8:00 AM". Display-only; we keep the 24h form in storage.
+const formatTimeLabel = (hhmm) => {
+  if (!hhmm || !/^\d{1,2}:\d{2}$/.test(hhmm)) return hhmm;
+  const [hStr, mStr] = hhmm.split(':');
+  const h = parseInt(hStr, 10);
+  const ap = h >= 12 ? 'PM' : 'AM';
+  const h12 = ((h + 11) % 12) + 1;
+  return `${h12}:${mStr} ${ap}`;
+};
 
 export default function Today({ tasks, completions, setCompletions, viewDate, setViewDate, freezes, setFreezes, skips, setSkips, routineNotes, setRoutineNotes }) {
   const key = todayKey(viewDate);
@@ -114,7 +124,15 @@ export default function Today({ tasks, completions, setCompletions, viewDate, se
             {formatLong(viewDate)}
           </h1>
         </div>
-        <div className="flex items-center gap-2">
+        {/*
+          When today is frozen the FreezeOverlay (z-140) covers the whole app.
+          We raise this row above the overlay so the user can still navigate
+          dates and, more importantly, click the Frozen toggle to unfreeze —
+          that's the only way out of the frozen state.
+        */}
+        <div
+          className={cn('flex items-center gap-2', isFrozen && 'relative z-[150]')}
+        >
           <button className="btn-ghost" onClick={() => setViewDate(addDays(viewDate, -1))} aria-label="Previous day">
             <ChevronLeft size={16} />
           </button>
@@ -126,12 +144,17 @@ export default function Today({ tasks, completions, setCompletions, viewDate, se
           </button>
           <button
             className={cn(
-              'btn-ghost',
-              isFrozen && 'text-cyan-600 bg-cyan-500/15'
+              'btn-ghost relative',
+              // Red blink against the cyan frost makes the unfreeze action
+              // unmissable — it's the only escape hatch while frozen.
+              isFrozen && 'text-white bg-rose-500 hover:bg-rose-600 ring-2 ring-rose-400/70 animate-pulse-soft shadow-lg shadow-rose-500/50'
             )}
             onClick={toggleFreeze}
-            title={isFrozen ? 'Day frozen — streak preserved' : 'Freeze this day (vacation / sick)'}
+            title={isFrozen ? 'Click to unfreeze' : 'Freeze this day (vacation / sick)'}
           >
+            {isFrozen && (
+              <span className="absolute inset-0 rounded-xl ring-2 ring-rose-400/60 animate-ping pointer-events-none" />
+            )}
             <Snowflake size={16} />
             {isFrozen ? 'Frozen' : 'Freeze'}
           </button>
@@ -232,7 +255,7 @@ function RoutineGroups({ visible, done, skipped, notes, toggle, adjustCount, ope
               {cat}
             </div>
           )}
-          <ul className="divide-y divide-slate-200/70 dark:divide-white/5">
+          <ul className="space-y-2">
             {items.map((t) => (
               <RoutineRow
                 key={t.id}
@@ -299,7 +322,7 @@ function RoutineRow({ task, value, isSkipped, note, onToggle, onAdjust, onMenu, 
         }
       }}
       className={cn(
-        'group flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl transition select-none cursor-pointer active:scale-[0.99] bg-gradient-to-r border',
+        'group flex items-start gap-2.5 sm:gap-3 p-3 sm:p-4 rounded-xl transition select-none cursor-pointer active:scale-[0.99] bg-gradient-to-r border',
         c.tintFrom,
         c.tintTo,
         c.border,
@@ -334,7 +357,7 @@ function RoutineRow({ task, value, isSkipped, note, onToggle, onAdjust, onMenu, 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <div className={cn('font-medium truncate', checked && 'line-through decoration-2')}>
-            {task.icon && <span className="mr-2">{task.icon}</span>}
+            {task.icon && <span className="mr-1.5">{task.icon}</span>}
             {task.name}
           </div>
           {isSkipped && (
@@ -388,8 +411,9 @@ function RoutineRow({ task, value, isSkipped, note, onToggle, onAdjust, onMenu, 
           </>
         ) : (
           task.time && (
-            <span className={cn('chip', `bg-gradient-to-tr ${c.from} ${c.to} text-white`)}>
-              {task.time}
+            <span className={cn('chip inline-flex items-center gap-1', `bg-gradient-to-tr ${c.from} ${c.to} text-white`)}>
+              <Clock size={11} />
+              {formatTimeLabel(task.time)}
             </span>
           )
         )}
@@ -408,7 +432,9 @@ function RoutineRow({ task, value, isSkipped, note, onToggle, onAdjust, onMenu, 
 
 function WeekDots({ tasks, completions, freezes, skips }) {
   const today = new Date();
-  const start = addDays(today, -6);
+  // Calendar week starting Sunday — feels more natural than the rolling 7-day
+  // window, and lets us put today in a known position rather than "always last".
+  const start = addDays(today, -today.getDay());
   const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
   return (
     <div className="flex items-end justify-between gap-1.5">
@@ -423,19 +449,32 @@ function WeekDots({ tasks, completions, freezes, skips }) {
         const pct = required.length ? completed / total : 0;
         const h = 8 + Math.round(pct * 40);
         const isToday = sameDay(d, today);
+        const isFuture = d > today && !isToday;
         const frozen = freezes.includes(k);
         return (
           <div key={k} className="flex flex-col items-center gap-1.5 flex-1">
-            <div className="h-12 flex items-end">
+            <div className={cn('h-12 flex items-end rounded-md px-1', isToday && 'bg-violet-500/10 dark:bg-violet-400/10 ring-1 ring-violet-500/30 dark:ring-violet-400/40')}>
               <div
                 className={cn(
                   'w-3.5 rounded-md transition-all',
                   frozen ? 'bg-gradient-to-t from-cyan-500 to-sky-400' : 'bg-gradient-to-t from-violet-500 to-cyan-400'
                 )}
-                style={{ height: `${frozen ? 30 : h}px`, opacity: frozen || pct > 0 ? 1 : 0.25 }}
+                style={{
+                  height: `${frozen ? 30 : h}px`,
+                  opacity: frozen || pct > 0 ? 1 : isFuture ? 0.15 : 0.25,
+                }}
               />
             </div>
-            <div className={cn('text-[10px] font-medium', isToday ? 'text-violet-600 dark:text-violet-400' : 'text-slate-500')}>
+            <div
+              className={cn(
+                'text-[10px] font-medium tabular-nums',
+                isToday
+                  ? 'text-white bg-gradient-to-tr from-violet-600 to-cyan-500 px-1.5 py-0.5 rounded-full shadow-sm'
+                  : isFuture
+                    ? 'text-slate-400 dark:text-slate-500'
+                    : 'text-slate-500'
+              )}
+            >
               {d.toLocaleDateString(undefined, { weekday: 'narrow' })}
             </div>
           </div>

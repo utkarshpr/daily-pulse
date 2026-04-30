@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, ListChecks, StickyNote, Bell, BarChart3, Calendar, Download, Upload, Menu, X, CalendarDays, Target, Lock, Unlock, Printer, Search, Inbox, BookOpen, Volume2, Keyboard, FileSpreadsheet, Compass, Smartphone, ChevronDown, HelpCircle, Database } from 'lucide-react';
+import { Sparkles, ListChecks, StickyNote, Bell, BarChart3, Calendar, Download, Upload, Menu, X, CalendarDays, Target, Lock, Unlock, Printer, Search, Inbox, BookOpen, Volume2, Keyboard, FileSpreadsheet, Compass, Smartphone, ChevronDown, HelpCircle, Database, Newspaper } from 'lucide-react';
 import { cn } from '../lib/utils';
 import ThemeToggle from './ThemeToggle';
 import { PRESETS } from '../lib/presets';
@@ -14,10 +14,16 @@ const NAV = [
   { id: 'notes', label: 'Notes', icon: StickyNote },
   { id: 'reminders', label: 'Reminders', icon: Bell },
   { id: 'journal', label: 'Journal', icon: BookOpen },
+  { id: 'news', label: 'News', icon: Newspaper },
   { id: 'stats', label: 'Stats', icon: BarChart3 },
 ];
 
 const MOBILE_NAV = NAV.filter((n) => ['today', 'tasks', 'notes', 'reminders', 'calendar'].includes(n.id));
+
+// Items that remain interactive while the app is frozen. The user must be
+// able to reach News (the read-only escape) and Today (where the Freeze
+// toggle lives, the only way out of the frozen state).
+const FROZEN_ALLOWED = new Set(['today', 'news']);
 
 export default function Sidebar({
   active, setActive, theme, setTheme, preset, setPreset,
@@ -26,6 +32,7 @@ export default function Sidebar({
   inboxCount = 0,
   soundPack, setSoundPack,
   profiles, activeProfile, onSwitchProfile, onCreateProfile, onRenameProfile, onDeleteProfile,
+  frozen = false,
 }) {
   const fileRef = React.useRef(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -39,14 +46,21 @@ export default function Sidebar({
   const NavButton = ({ item, compact = false }) => {
     const Icon = item.icon;
     const isActive = active === item.id;
+    // While frozen: punch Today + News through to z-index above the overlay
+    // (overlay sits at z-140) so they stay clickable; everything else is
+    // visually muted and pointer-blocked behind the frost.
+    const allowedWhileFrozen = !frozen || FROZEN_ALLOWED.has(item.id);
     return (
       <button
         onClick={() => { setActive(item.id); setDrawerOpen(false); }}
+        disabled={!allowedWhileFrozen}
         className={cn(
           'relative flex items-center rounded-xl text-sm font-medium transition shrink-0',
           compact ? 'flex-col gap-0.5 px-3 py-2 min-w-[64px]' : 'gap-3 px-3 py-2.5 w-full',
-          isActive ? 'text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/5'
+          isActive ? 'text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/5',
+          frozen && (allowedWhileFrozen ? 'z-[150]' : 'opacity-30 pointer-events-none')
         )}
+        style={frozen && allowedWhileFrozen ? { position: 'relative', zIndex: 150 } : undefined}
       >
         {isActive && (
           <span className="absolute inset-0 rounded-xl bg-gradient-to-tr from-violet-600 to-cyan-500 shadow-lg shadow-violet-500/20" />

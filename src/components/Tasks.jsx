@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Plus, Pencil, Trash2, X, Save, GripVertical, CheckSquare, BellPlus } from 'lucide-react';
 import { uid, PALETTE, colorFor, cn } from '../lib/utils';
 import { useDragReorder } from '../hooks/useDragReorder';
@@ -11,7 +11,7 @@ const EMPTY = { name: '', description: '', icon: '✨', time: '', color: 'violet
 
 const CATEGORY_SUGGESTIONS = ['Morning', 'Work', 'Health', 'Learning', 'Evening'];
 
-export default function Tasks({ tasks, setTasks, goals = [], setGoals, confirm, flash, onSetReminder }) {
+export default function Tasks({ tasks, setTasks, goals = [], setGoals, confirm, flash, onSetReminder, pendingCapture, clearPendingCapture, onSwitchToReminder }) {
   const [editing, setEditing] = useState(null);
   const [draft, setDraft] = useState(EMPTY);
   const [targetInput, setTargetInput] = useState('');
@@ -43,6 +43,14 @@ export default function Tasks({ tasks, setTasks, goals = [], setGoals, confirm, 
       if (parsed.title) next.name = parsed.title;
       if (parsed.icon) next.icon = parsed.icon;
       if (parsed.time) next.time = parsed.time;
+      // When the parser only resolved an absolute moment (parsed.when) — e.g.
+      // "kal" → tomorrow 9 AM — pull the time-of-day off so the routine still
+      // gets *something* useful. Routines have no date field, so the date
+      // portion is intentionally dropped.
+      else if (parsed.when) {
+        const d = new Date(parsed.when);
+        next.time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      }
       if (parsed.days && parsed.days.length > 0) next.days = parsed.days;
       if (parsed.category) next.category = parsed.category;
       if (parsed.goalCount > 0) {
@@ -56,6 +64,19 @@ export default function Tasks({ tasks, setTasks, goals = [], setGoals, confirm, 
     }
     flash?.('Parsed — review and save');
   };
+
+  // Parent can hand us a parsed payload from the Reminders tab when the user
+  // clicked "Switch" on the wrong-variant hint. Open a fresh draft and prefill.
+  useEffect(() => {
+    if (pendingCapture?.target !== 'routine') return;
+    setEditing('new');
+    setDraft(EMPTY);
+    setTargetInput('');
+    applySmart(pendingCapture.raw, pendingCapture.parsed);
+    clearPendingCapture?.();
+    // applySmart is stable enough — re-running on its identity change is fine.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingCapture]);
 
   const save = () => {
     if (!draft.name.trim()) {
@@ -162,7 +183,14 @@ export default function Tasks({ tasks, setTasks, goals = [], setGoals, confirm, 
 
       {editing && (
         <div className="card p-5 animate-pop-in">
-          <SmartInput variant="routine" onApply={applySmart} />
+          <SmartInput
+            variant="routine"
+            onApply={applySmart}
+            onSwitchVariant={(raw, parsed) => {
+              cancel();
+              onSwitchToReminder?.(raw, parsed);
+            }}
+          />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <label className="text-xs uppercase tracking-wider text-slate-500">Name</label>

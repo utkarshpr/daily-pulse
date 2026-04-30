@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Plus, Bell, BellRing, Pencil, Trash2, Save, X, Check, Clock, Repeat, AlertTriangle, CalendarPlus } from 'lucide-react';
 import { uid, cn } from '../lib/utils';
 import { REPEAT_OPTIONS, labelForRepeat } from '../lib/recurrence';
@@ -26,7 +26,7 @@ const splitIso = (iso) => {
   };
 };
 
-export default function Reminders({ reminders, setReminders, confirm, flash }) {
+export default function Reminders({ reminders, setReminders, confirm, flash, pendingCapture, clearPendingCapture, onSwitchToRoutine }) {
   const [editing, setEditing] = useState(null);
   const [draft, setDraft] = useState(EMPTY);
   const [permission, setPermission] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'denied');
@@ -77,6 +77,16 @@ export default function Reminders({ reminders, setReminders, confirm, flash }) {
     });
     flash?.('Parsed — review the time before saving');
   };
+
+  // Pick up a "switch from Routines" hand-off: open a fresh draft and prefill.
+  useEffect(() => {
+    if (pendingCapture?.target !== 'reminder') return;
+    setEditing('new');
+    setDraft(EMPTY);
+    applySmartInput(pendingCapture.raw, pendingCapture.parsed);
+    clearPendingCapture?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingCapture]);
 
   const cancel = () => {
     setEditing(null);
@@ -174,7 +184,13 @@ export default function Reminders({ reminders, setReminders, confirm, flash }) {
 
       {editing && (
         <div className="card p-5 animate-pop-in">
-          <SmartInput onApply={applySmartInput} />
+          <SmartInput
+            onApply={applySmartInput}
+            onSwitchVariant={(raw, parsed) => {
+              cancel();
+              onSwitchToRoutine?.(raw, parsed);
+            }}
+          />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <label className="text-xs uppercase tracking-wider text-slate-500">Title</label>

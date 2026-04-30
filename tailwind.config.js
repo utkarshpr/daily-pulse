@@ -50,6 +50,18 @@ export default {
           '10%, 30%': { transform: 'rotate(15deg)' },
           '20%, 40%': { transform: 'rotate(-15deg)' },
         },
+        // Frost rolls in from corners when freezing today.
+        'frost-in': {
+          '0%': { opacity: 0, backdropFilter: 'blur(0)' },
+          '100%': { opacity: 1, backdropFilter: 'blur(2px)' },
+        },
+        // Drifting snowflakes — used with random delays/durations per flake.
+        drift: {
+          '0%': { transform: 'translateY(-10vh) translateX(0) rotate(0deg)', opacity: 0 },
+          '10%': { opacity: 0.9 },
+          '90%': { opacity: 0.9 },
+          '100%': { transform: 'translateY(110vh) translateX(40px) rotate(360deg)', opacity: 0 },
+        },
       },
       animation: {
         'fade-in': 'fade-in .35s ease-out',
@@ -61,6 +73,8 @@ export default {
         float: 'float 3s ease-in-out infinite',
         gradient: 'gradient 6s ease infinite',
         bell: 'bell 1.2s ease-in-out infinite',
+        'frost-in': 'frost-in .9s ease-out forwards',
+        drift: 'drift 14s linear infinite',
       },
     },
   },

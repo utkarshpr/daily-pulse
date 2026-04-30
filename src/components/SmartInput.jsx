@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Wand2, Sparkles, Clock, Repeat, Hash, AlertTriangle, Tag, CalendarDays, X } from 'lucide-react';
+import { Wand2, Sparkles, Clock, Repeat, Hash, AlertTriangle, Tag, CalendarDays, X, ArrowRightLeft } from 'lucide-react';
 import { parseSmart } from '../lib/nlparse';
 import { cn } from '../lib/utils';
 
@@ -72,6 +72,7 @@ function useRotatingPlaceholder(list, intervalMs = 3500, paused = false) {
 export default function SmartInput({
   variant = 'reminder', // 'reminder' | 'routine'
   onApply,
+  onSwitchVariant,
   examples,
 }) {
   const [text, setText] = useState('');
@@ -80,6 +81,19 @@ export default function SmartInput({
   const placeholder = useRotatingPlaceholder(list, 3500, text.length > 0);
 
   const parsed = useMemo(() => (text.trim() ? parseSmart(text) : null), [text]);
+
+  // Detect when the parsed signals look like the *other* surface so we can
+  // suggest switching tabs instead of silently dropping fields.
+  //   On 'routine': a one-shot date with no recurring days/repeat → reminder.
+  //   On 'reminder': recurring days/repeat with no concrete date → routine.
+  const wrongVariantHint = useMemo(() => {
+    if (!parsed || !onSwitchVariant) return null;
+    const hasDays = parsed.days && parsed.days.length > 0;
+    const recurs = parsed.repeat !== 'none';
+    if (variant === 'routine' && parsed.when && !hasDays && !recurs) return 'reminder';
+    if (variant === 'reminder' && (hasDays || recurs) && !parsed.when) return 'routine';
+    return null;
+  }, [parsed, variant, onSwitchVariant]);
 
   const apply = () => {
     const t = text.trim();
@@ -228,6 +242,27 @@ export default function SmartInput({
                 → <em className="text-slate-700 dark:text-slate-200 font-medium not-italic">{parsed.title}</em>
               </span>
             )}
+          </div>
+        )}
+
+        {wrongVariantHint && (
+          <div className="mt-3 flex items-center gap-2 rounded-xl border border-amber-400/40 bg-amber-500/10 px-3 py-2 animate-fade-in">
+            <ArrowRightLeft size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
+            <span className="text-[11px] text-amber-700 dark:text-amber-300 flex-1">
+              {wrongVariantHint === 'reminder'
+                ? 'Looks like a one-off — Routines repeat. Add as a Reminder?'
+                : 'Looks like a recurring habit — Reminders are date-anchored. Add as a Routine?'}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                onSwitchVariant(text.trim(), parsed);
+                setText('');
+              }}
+              className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 underline-offset-2 hover:underline shrink-0"
+            >
+              Switch
+            </button>
           </div>
         )}
 

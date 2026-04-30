@@ -21,37 +21,56 @@ const WEEKDAY_SHORT = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 // Hinglish day names. Indexed parallel to WEEKDAYS.
 const WEEKDAYS_HI = ['ravivar', 'somvar', 'mangalvar', 'budhvar', 'guruvar', 'shukravar', 'shanivar'];
 
-const TIME_KEYWORDS = {
-  noon: { h: 12, min: 0 },
-  midnight: { h: 0, min: 0 },
-  morning: { h: 8, min: 0 },
-  afternoon: { h: 14, min: 0 },
-  evening: { h: 18, min: 0 },
-  night: { h: 21, min: 0 },
-  // Meal/work cues — common everyday speech.
-  'before lunch': { h: 12, min: 0 },
-  'after lunch': { h: 14, min: 0 },
-  lunch: { h: 13, min: 0 },
-  'before dinner': { h: 18, min: 0 },
-  'after dinner': { h: 20, min: 0 },
-  dinner: { h: 19, min: 0 },
-  breakfast: { h: 8, min: 0 },
-  'before bed': { h: 22, min: 0 },
-  bedtime: { h: 22, min: 0 },
+// Time keywords as a variants list. Each entry maps several spellings to the
+// same time. Order matters: longer phrases must come before shorter ones that
+// they contain (e.g. "before lunch" before "lunch", "aadhi raat" before "raat")
+// so the longer match wins.
+//
+// `ambiguous: true` marks variants that collide with everyday English words
+// ("rat" the rodent, "sham" the fake). We only accept those when a Hindi
+// context cue (kal, parso, aaj, baje, …) sits within ~20 chars on either side.
+const TIME_KEYWORDS = [
+  // Meal/work cues — multi-word forms first so they outmatch the single word.
+  { variants: ['before lunch'], h: 12, min: 0 },
+  { variants: ['after lunch'], h: 14, min: 0 },
+  { variants: ['lunch'], h: 13, min: 0 },
+  { variants: ['before dinner'], h: 18, min: 0 },
+  { variants: ['after dinner'], h: 20, min: 0 },
+  { variants: ['dinner'], h: 19, min: 0 },
+  { variants: ['breakfast'], h: 8, min: 0 },
+  { variants: ['before bed'], h: 22, min: 0 },
+  { variants: ['bedtime'], h: 22, min: 0 },
   // Business shorthand
-  eod: { h: 18, min: 0 },
-  cob: { h: 18, min: 0 },
-  'end of day': { h: 18, min: 0 },
-  'end of the day': { h: 18, min: 0 },
-  'close of business': { h: 18, min: 0 },
-  // Hinglish — Roman-script Hindi words people commonly mix into English text.
-  subah: { h: 8, min: 0 },
-  sawera: { h: 6, min: 0 },
-  dopahar: { h: 14, min: 0 },
-  shaam: { h: 18, min: 0 },
-  raat: { h: 21, min: 0 },
-  'aadhi raat': { h: 0, min: 0 },
-};
+  { variants: ['end of the day', 'end of day'], h: 18, min: 0 },
+  { variants: ['close of business'], h: 18, min: 0 },
+  { variants: ['eod'], h: 18, min: 0 },
+  { variants: ['cob'], h: 18, min: 0 },
+  // English time-of-day
+  { variants: ['noon'], h: 12, min: 0 },
+  { variants: ['midnight'], h: 0, min: 0 },
+  { variants: ['morning'], h: 8, min: 0 },
+  { variants: ['afternoon'], h: 14, min: 0 },
+  { variants: ['evening'], h: 18, min: 0 },
+  { variants: ['night'], h: 21, min: 0 },
+  // Hinglish — including the typos people actually type in Roman script.
+  { variants: ['subah', 'subha', 'subhah'], h: 8, min: 0 },
+  { variants: ['sawera', 'savera'], h: 6, min: 0 },
+  { variants: ['dopahar', 'dupahar', 'dopaher', 'dophar'], h: 14, min: 0 },
+  { variants: ['shaam'], h: 18, min: 0 },
+  { variants: ['sham'], h: 18, min: 0, ambiguous: true },
+  // 'aadhi raat' must come before 'raat' (substring of the multi-word form).
+  { variants: ['aadhi raat', 'adhi raat'], h: 0, min: 0 },
+  { variants: ['raat'], h: 21, min: 0 },
+  { variants: ['rat'], h: 21, min: 0, ambiguous: true },
+];
+
+// Cues that signal Hindi/Hinglish context. When an ambiguous time variant
+// (rat, sham) sits within HINDI_CONTEXT_WINDOW chars of one of these, we trust
+// it's the time-of-day word rather than the English homograph. Kept tight on
+// purpose — common English words like "this" or "next" produce false positives
+// (e.g. "this is a sham") and are deliberately excluded.
+const HINDI_CONTEXT_RE = /\b(?:kal|parso(?:on)?|aaj|baje|tomorrow|tonight|today|har\s+(?:roz|hafte|mahine|maheene))\b/;
+const HINDI_CONTEXT_WINDOW = 20;
 
 // Goal/unit hints. Covers metric + imperial — same parser works for "8
 // glasses of water", "5 km run", "30 pages", "20 lbs". Matters mostly for
@@ -170,9 +189,20 @@ const parseDayOfMonth = (lower) => {
 };
 
 const parseTimeKeyword = (lower) => {
-  for (const [word, t] of Object.entries(TIME_KEYWORDS)) {
-    const re = new RegExp(`\\b${word}\\b`);
-    if (re.test(lower)) return { ...t, raw: word };
+  for (const entry of TIME_KEYWORDS) {
+    for (const variant of entry.variants) {
+      const re = new RegExp(`\\b${variant.replace(/\s+/g, '\\s+')}\\b`);
+      const m = lower.match(re);
+      if (!m) continue;
+      if (entry.ambiguous) {
+        // Look for a Hindi/Hinglish cue within a small window on either side.
+        // Without one, we treat the token as the English homograph and skip.
+        const before = lower.slice(Math.max(0, m.index - HINDI_CONTEXT_WINDOW), m.index);
+        const after = lower.slice(m.index + m[0].length, m.index + m[0].length + HINDI_CONTEXT_WINDOW);
+        if (!HINDI_CONTEXT_RE.test(before) && !HINDI_CONTEXT_RE.test(after)) continue;
+      }
+      return { h: entry.h, min: entry.min, raw: m[0] };
+    }
   }
   return null;
 };
@@ -322,7 +352,7 @@ const STRIP_PATTERNS = [
   /\b(har\s+roz|rozana|rozaana|roz|har\s+hafte|har\s+mahine|har\s+maheene)\b/gi,
   /\b(aaj\s+raat|aaj|kal|parso|parsoon)\b/gi,
   /\b\d{1,2}(?::\d{2})?\s*baje\b/gi,
-  /\b(subah|sawera|dopahar|shaam|raat|aadhi\s+raat)\b/gi,
+  /\b(subah|subha|subhah|sawera|savera|dopahar|dupahar|dopaher|dophar|shaam|raat|aadhi\s+raat|adhi\s+raat)\b/gi,
   /\b(somvar|mangalvar|budhvar|guruvar|shukravar|shanivar|ravivar)s?\b/gi,
   /\b(\d+\s+)?(bar|baar)\b/gi,
   // Biweekly / fortnightly / every other.
@@ -354,9 +384,18 @@ const STRIP_PATTERNS = [
   /\b(and|&|,)\s+(?=(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun))/gi,
 ];
 
-const cleanTitle = (text, quant) => {
+const cleanTitle = (text, quant, timeKeywordRaw) => {
   let out = text;
   for (const re of STRIP_PATTERNS) out = out.replace(re, ' ');
+  // Ambiguous time keywords (rat, sham) are kept out of STRIP_PATTERNS so
+  // "feed the rat" doesn't lose "rat". When the parser confirmed one as a
+  // time, strip that exact word here.
+  if (timeKeywordRaw) {
+    const escaped = timeKeywordRaw
+      .replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)
+      .replaceAll(/\s+/g, String.raw`\s+`);
+    out = out.replaceAll(new RegExp(String.raw`\b${escaped}\b`, 'gi'), ' ');
+  }
   if (quant) {
     const re = new RegExp(`\\b${quant.count}\\s+${quant.unit}s?\\b`, 'gi');
     out = out.replace(re, ' ');
@@ -382,9 +421,11 @@ export const parseSmart = (raw) => {
   const days = daySet.size > 0 ? Array.from(daySet).sort((a, b) => a - b) : null;
   const repeat = parseRepeat(lower, daySet);
 
-  // Time parsing: numeric first, fall back to keyword (noon, evening, etc.)
+  // Time parsing: numeric wins for the actual time, but we still detect a
+  // keyword match so its raw word can be stripped from the title (otherwise
+  // "kal rat 11pm call" would keep "rat" in the cleaned title).
   const numericTime = parseTime(lower);
-  const keywordTime = numericTime ? null : parseTimeKeyword(lower);
+  const keywordTime = parseTimeKeyword(lower);
   const t = numericTime || keywordTime;
 
   // Date resolution for reminders.
@@ -528,7 +569,7 @@ export const parseSmart = (raw) => {
   const priority = parsePriority(lower);
   const category = parseCategory(lower);
 
-  let title = cleanTitle(text, quant);
+  let title = cleanTitle(text, quant, keywordTime?.raw);
   if (icon) title = title.replace(icon, '').replace(/\s+/g, ' ').trim();
   title = capFirst(title);
 
