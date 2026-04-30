@@ -6,6 +6,29 @@
   html, body, #root {
     height: 100%;
   }
+  html {
+    /* Removes the 300ms tap delay + double-tap-to-zoom on mobile */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    overscroll-behavior-y: none;
+  }
+  /* Re-enable selection on the things that need it */
+  input, textarea, [contenteditable], .markdown, .prose {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  /* iOS auto-zooms when an input is focused with font-size < 16px. Force 16px
+     min on mobile so focus doesn't trigger an unwanted zoom. */
+  @media (max-width: 640px) {
+    .input, input[type='text'], input[type='number'], input[type='datetime-local'],
+    input[type='date'], input[type='time'], input[type='search'], input[type='password'],
+    input[type='email'], textarea, select {
+      font-size: 16px !important;
+    }
+  }
   body {
     @apply font-sans antialiased text-slate-900 dark:text-slate-100;
     background: radial-gradient(1200px 600px at 10% -10%, rgba(139, 92, 246, .25), transparent 60%),

@@ -135,25 +135,7 @@ export default function Reminders({ reminders, setReminders, confirm, flash }) {
 
       {editing && (
         <div className="card p-5 animate-pop-in">
-          <div className="rounded-xl bg-gradient-to-r from-violet-500/10 to-cyan-500/10 border border-violet-500/20 p-3 mb-4">
-            <label className="text-[10px] uppercase tracking-wider text-violet-600 dark:text-violet-400 font-semibold flex items-center gap-1.5">
-              <Wand2 size={12} /> Smart input
-            </label>
-            <div className="flex gap-2 mt-1">
-              <input
-                placeholder='Try "remind me to call mom tomorrow at 9"'
-                className="input flex-1 text-sm"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                    e.preventDefault();
-                    applySmartInput(e.currentTarget.value.trim());
-                    e.currentTarget.value = '';
-                  }
-                }}
-              />
-            </div>
-            <p className="text-[10px] text-slate-400 mt-1.5">Press <kbd className="px-1 py-0.5 rounded bg-white/60 dark:bg-white/10 border border-slate-200 dark:border-white/10">Enter</kbd> to parse · supports "in 30 min", "tomorrow at 9", "every monday at 7pm", etc.</p>
-          </div>
+          <SmartInput onApply={applySmartInput} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <label className="text-xs uppercase tracking-wider text-slate-500">Title</label>
@@ -325,6 +307,54 @@ export default function Reminders({ reminders, setReminders, confirm, flash }) {
           })}
         </ul>
       )}
+    </div>
+  );
+}
+
+function SmartInput({ onApply }) {
+  const [text, setText] = useState('');
+  const apply = () => {
+    const t = text.trim();
+    if (!t) return;
+    onApply(t);
+    setText('');
+  };
+  return (
+    <div className="rounded-xl bg-gradient-to-r from-violet-500/10 to-cyan-500/10 border border-violet-500/20 p-3 mb-4">
+      <label className="text-[10px] uppercase tracking-wider text-violet-600 dark:text-violet-400 font-semibold flex items-center gap-1.5">
+        <Wand2 size={12} /> Smart input
+      </label>
+      <form
+        className="flex gap-2 mt-1"
+        onSubmit={(e) => { e.preventDefault(); apply(); }}
+      >
+        <input
+          placeholder='Try "remind me to call mom tomorrow at 9"'
+          className="input flex-1 text-sm"
+          enterKeyHint="done"
+          autoCapitalize="sentences"
+          autoCorrect="off"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              apply();
+            }
+          }}
+        />
+        <button
+          type="submit"
+          disabled={!text.trim()}
+          className="btn-primary !px-3 shrink-0"
+          aria-label="Apply smart input"
+        >
+          <Wand2 size={14} /> Apply
+        </button>
+      </form>
+      <p className="text-[10px] text-slate-400 mt-1.5">
+        Tap <strong>Apply</strong> or hit <kbd className="px-1 py-0.5 rounded bg-white/60 dark:bg-white/10 border border-slate-200 dark:border-white/10">Enter</kbd> · supports "in 30 min", "tomorrow at 9", "every monday at 7pm", etc.
+      </p>
     </div>
   );
 }
