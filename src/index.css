@@ -26,6 +26,15 @@
   /* Smoother scroll */
   html { scroll-behavior: smooth; }
 
+  /* Drop the native number-input spinner so we keep the input editable but
+     without the up/down chrome. */
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
+
   /* Refined focus ring */
   *:focus-visible {
     outline: 2px solid theme('colors.violet.500');
@@ -87,31 +96,8 @@ html.dark input[type='week']::-webkit-calendar-picker-indicator:hover {
       0 4px 24px rgba(0, 0, 0, 0.3);
   }
   .card {
-    @apply glass rounded-2xl relative;
+    @apply glass rounded-2xl;
     transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.4s ease;
-  }
-  /* Mouse-tracked spotlight overlay */
-  .card::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    background: radial-gradient(
-      400px circle at var(--mx, 50%) var(--my, 50%),
-      rgba(139, 92, 246, 0.15),
-      transparent 40%
-    );
-  }
-  .card:hover::before { opacity: 1; }
-  .dark .card::before {
-    background: radial-gradient(
-      400px circle at var(--mx, 50%) var(--my, 50%),
-      rgba(139, 92, 246, 0.18),
-      transparent 40%
-    );
   }
   .btn {
     @apply inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all

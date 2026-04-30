@@ -262,20 +262,44 @@ function RoutineRow({ task, value, isSkipped, note, onToggle, onAdjust, onMenu, 
   const swipe = useSwipe({ onSwipeRight: onToggle, onSwipeLeft: onToggle, threshold: 70 });
   const pct = target ? Math.min(1, count / target) : checked ? 1 : 0;
 
-  // long-press handlers
+  // long-press: opens menu after 500ms; click is suppressed when long-press fired
   const longPressRef = useRef(null);
+  const longPressFiredRef = useRef(false);
   const startPress = () => {
-    longPressRef.current = setTimeout(() => onMenu(), 500);
+    longPressFiredRef.current = false;
+    longPressRef.current = setTimeout(() => {
+      longPressFiredRef.current = true;
+      onMenu();
+    }, 500);
   };
   const cancelPress = () => {
     if (longPressRef.current) clearTimeout(longPressRef.current);
     longPressRef.current = null;
   };
 
+  const handleRowClick = () => {
+    if (longPressFiredRef.current) {
+      longPressFiredRef.current = false;
+      return;
+    }
+    if (isSkipped) return;
+    if (quant) onAdjust(+1); // tap row in quant mode adds 1
+    else onToggle();
+  };
+
   return (
     <li
+      role="button"
+      tabIndex={0}
+      onClick={handleRowClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleRowClick();
+        }
+      }}
       className={cn(
-        'group flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl transition select-none',
+        'group flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl transition select-none cursor-pointer active:scale-[0.99]',
         (checked || isSkipped) && 'opacity-70',
         muted && 'opacity-60'
       )}
@@ -286,18 +310,16 @@ function RoutineRow({ task, value, isSkipped, note, onToggle, onAdjust, onMenu, 
       onTouchStart={(e) => { swipe.onTouchStart(e); startPress(); }}
       onTouchEnd={(e) => { swipe.onTouchEnd(e); cancelPress(); }}
     >
-      <button
-        onClick={onToggle}
-        disabled={isSkipped}
+      <div
         className={cn(
           'shrink-0 size-9 rounded-xl grid place-items-center transition-all border relative overflow-visible mt-0.5',
           checked
             ? `bg-gradient-to-tr ${c.from} ${c.to} text-white border-transparent shadow-md`
             : isSkipped
               ? 'border-slate-300 dark:border-white/15 bg-slate-200/50 dark:bg-white/5'
-              : 'border-slate-300 dark:border-white/15 hover:border-slate-400 dark:hover:border-white/30 active:scale-90'
+              : 'border-slate-300 dark:border-white/15'
         )}
-        aria-label={checked ? 'Mark incomplete' : 'Mark complete'}
+        aria-hidden="true"
       >
         {checked && <span className={cn('absolute inset-0 rounded-xl bg-gradient-to-tr', c.from, c.to, 'animate-ripple')} />}
         <Check
@@ -305,7 +327,7 @@ function RoutineRow({ task, value, isSkipped, note, onToggle, onAdjust, onMenu, 
           className={cn('relative transition', checked ? 'opacity-100 animate-check-pop' : 'opacity-0 scale-75')}
           strokeWidth={3}
         />
-      </button>
+      </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <div className={cn('font-medium truncate', checked && 'line-through decoration-2')}>
@@ -337,7 +359,7 @@ function RoutineRow({ task, value, isSkipped, note, onToggle, onAdjust, onMenu, 
           </div>
         )}
       </div>
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
         {quant ? (
           <>
             <button

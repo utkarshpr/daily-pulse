@@ -1,46 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { Plus, Pencil, Trash2, Save, X, Target, Trophy, Calendar, Lightbulb } from 'lucide-react';
 import { uid, todayKey, addDays, cn } from '../lib/utils';
+import { suggestHabits as findHabitGroup } from '../lib/habitSuggestions';
 
-const HABIT_SUGGESTIONS = [
-  { keywords: ['run', 'marathon', '5k', '10k', 'jog'], suggestions: [
-    { name: 'Morning run', icon: '🏃', goalCount: 0, category: 'Health' },
-    { name: 'Stretch & cool down', icon: '🧘', goalCount: 0, category: 'Health' },
-    { name: 'Track distance', icon: '📏', goalCount: 5, unit: 'km', category: 'Health' },
-  ]},
-  { keywords: ['weight', 'lose', 'fitness', 'workout', 'gym', 'lift'], suggestions: [
-    { name: 'Workout session', icon: '💪', goalCount: 0, category: 'Health' },
-    { name: 'Hydrate', icon: '💧', goalCount: 8, unit: 'glasses', category: 'Health' },
-    { name: 'Track meals', icon: '🥗', goalCount: 0, category: 'Health' },
-  ]},
-  { keywords: ['read', 'book', 'reading'], suggestions: [
-    { name: 'Read', icon: '📚', goalCount: 30, unit: 'pages', category: 'Learning' },
-    { name: 'Reflect on what you read', icon: '✍️', goalCount: 0, category: 'Learning' },
-  ]},
-  { keywords: ['learn', 'study', 'language', 'course'], suggestions: [
-    { name: 'Study session', icon: '🧠', goalCount: 30, unit: 'min', category: 'Learning' },
-    { name: 'Practice exercises', icon: '✏️', goalCount: 0, category: 'Learning' },
-  ]},
-  { keywords: ['meditate', 'mindful', 'calm', 'stress', 'sleep'], suggestions: [
-    { name: 'Meditation', icon: '🧘', goalCount: 10, unit: 'min', category: 'Health' },
-    { name: 'Sleep by 11pm', icon: '😴', goalCount: 0, category: 'Evening' },
-  ]},
-  { keywords: ['write', 'blog', 'novel', 'journal'], suggestions: [
-    { name: 'Daily writing', icon: '✍️', goalCount: 500, unit: 'words', category: 'Work' },
-    { name: 'Edit yesterday\'s draft', icon: '📝', goalCount: 0, category: 'Work' },
-  ]},
-  { keywords: ['save', 'money', 'budget', 'finance'], suggestions: [
-    { name: 'Log expenses', icon: '💰', goalCount: 0, category: 'Finance' },
-    { name: 'No-spend day', icon: '🚫', goalCount: 0, category: 'Finance' },
-  ]},
-];
-
-const suggestHabits = (goalText) => {
-  const text = (goalText || '').toLowerCase();
-  for (const group of HABIT_SUGGESTIONS) {
-    if (group.keywords.some((k) => text.includes(k))) return group.suggestions;
-  }
-  return null;
+const suggestHabits = (text) => {
+  const group = findHabitGroup(text);
+  return group ? group.suggestions : null;
 };
 
 const EMPTY = { title: '', description: '', target: '', linkedTaskIds: [] };

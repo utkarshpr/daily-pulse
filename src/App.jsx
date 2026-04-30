@@ -19,11 +19,13 @@ import Journal from './components/Journal';
 import WeeklySummary from './components/WeeklySummary';
 import OnThisDay from './components/OnThisDay';
 import CheatSheet from './components/CheatSheet';
+import Onboarding from './components/Onboarding';
+import RouteLoader from './components/RouteLoader';
+import InstallPrompt from './components/InstallPrompt';
 import { useLocalStorage, useProfileStorage } from './hooks/useLocalStorage';
 import { useConfirm } from './hooks/useConfirm';
 import { usePullToRefresh } from './hooks/usePullToRefresh';
-import { useCardSpotlight } from './hooks/useCardSpotlight';
-import { useReveal } from './hooks/useReveal';
+import { syncAllViaSw, requestPushPermission, pushPermission } from './lib/push';
 import { uid, todayKey } from './lib/utils';
 import { playChime, vibrate } from './lib/chime';
 import { nextOccurrence } from './lib/recurrence';
@@ -54,6 +56,14 @@ export default function App() {
   const [inbox, setInbox] = useProfileStorage(activeProfile, 'inbox.v1', []);
   const [seenBadges, setSeenBadges] = useProfileStorage(activeProfile, 'seenBadges.v1', []);
   const [pomodoro, setPomodoro] = useProfileStorage(activeProfile, 'pomodoro.v1', { focus: 25, break: 5 });
+  const [pomoState, setPomoState] = useProfileStorage(activeProfile, 'pomoState.v1', {
+    mode: 'focus',
+    endTime: null,
+    remaining: 25 * 60,
+    completedFocuses: 0,
+    linkedTaskId: '',
+    completedFocusesDate: null, // YYYY-MM-DD — counter resets on date change
+  });
   const [reviewTime, setReviewTime] = useProfileStorage(activeProfile, 'reviewTime.v1', '21:30');
   const [freezes, setFreezes] = useProfileStorage(activeProfile, 'freezes.v1', []);
   const [skips, setSkips] = useProfileStorage(activeProfile, 'skips.v1', {});
@@ -65,6 +75,8 @@ export default function App() {
   const [theme, setTheme] = useLocalStorage('dp.theme.v1', 'light');
   const [preset, setPreset] = useLocalStorage('dp.preset.v1', 'aurora');
   const [soundPack, setSoundPack] = useLocalStorage('dp.soundPack.v1', 'chime');
+  const [onboarded, setOnboarded] = useLocalStorage('dp.onboarded.v1', false);
+  const [installPromptShown, setInstallPromptShown] = useLocalStorage('dp.installPromptShown.v1', false);
 
   // ---- Ephemeral state ----
   const [viewDate, setViewDate] = useState(new Date());
@@ -78,10 +90,10 @@ export default function App() {
   const [captureOpen, setCaptureOpen] = useState(false);
   const [cheatOpen, setCheatOpen] = useState(false);
   const [refreshSpin, setRefreshSpin] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [installOpen, setInstallOpen] = useState(false);
   const titleTimerRef = useRef(null);
   const { confirm, dialog: confirmDialog } = useConfirm();
-  useCardSpotlight();
-  useReveal([active, activeProfile]);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
@@ -91,6 +103,164 @@ export default function App() {
   useEffect(() => {
     const t = setTimeout(() => setBooting(false), 700);
     return () => clearTimeout(t);
+  }, []);
+
+  // Onboarding: show on first launch, after splash
+  useEffect(() => {
+    if (booting || onboarded) return;
+    const t = setTimeout(() => setOnboardingOpen(true), 200);
+    return () => clearTimeout(t);
+  }, [booting, onboarded]);
+
+  // Install prompt: shown right after onboarding the very first time, only on
+  // mobile/web where add-to-home-screen makes sense. Skipped if already running
+  // standalone.
+  useEffect(() => {
+    if (booting || onboardingOpen || installPromptShown) return;
+    if (!onboarded) return; // wait for onboarding to be either done or skipped
+    if (typeof window === 'undefined') return;
+    const standalone =
+      window.matchMedia?.('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true;
+    if (standalone) return;
+    const t = setTimeout(() => setInstallOpen(true), 600);
+    return () => clearTimeout(t);
+  }, [booting, onboardingOpen, onboarded, installPromptShown]);
+
+  // Sync pending reminders to the service worker so they fire even when this
+  // tab is closed (subject to browser permission + Notification Triggers / SW
+  // lifetime).
+  useEffect(() => {
+    syncAllViaSw(reminders);
+  }, [reminders]);
+
+  // ---- Pomodoro timer (lifted to App so it survives navigation) ----
+  // A 1Hz ticker only runs while a timer is active. Time math derives from
+  // endTime so it stays correct even if the component remounts.
+  const [, pomoForce] = useState(0);
+  useEffect(() => {
+    if (!pomoState.endTime) return;
+    const t = setInterval(() => pomoForce((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [pomoState.endTime]);
+
+  const pomoSeconds = pomoState.endTime
+    ? Math.max(0, Math.round((pomoState.endTime - Date.now()) / 1000))
+    : pomoState.remaining;
+
+  // Reset focus-counter daily
+  useEffect(() => {
+    const today = todayKey();
+    if (pomoState.completedFocusesDate && pomoState.completedFocusesDate !== today) {
+      setPomoState((cur) => ({ ...cur, completedFocuses: 0, completedFocusesDate: today }));
+    }
+  }, [pomoState.completedFocusesDate, setPomoState]);
+
+  // Auto-complete when timer hits 0
+  useEffect(() => {
+    if (!pomoState.endTime) return;
+    if (pomoSeconds > 0) return;
+    // Capture current mode for messaging before mutating
+    const finishedMode = pomoState.mode;
+    playChime(soundPack);
+    vibrate();
+    setPomoState((cur) => {
+      if (cur.mode === 'focus') {
+        if (cur.linkedTaskId) completeTaskForTodayInline(cur.linkedTaskId);
+        return {
+          ...cur,
+          mode: 'break',
+          endTime: null,
+          remaining: (pomodoro.break ?? 5) * 60,
+          completedFocuses: cur.completedFocuses + 1,
+          completedFocusesDate: todayKey(),
+        };
+      }
+      return {
+        ...cur,
+        mode: 'focus',
+        endTime: null,
+        remaining: (pomodoro.focus ?? 25) * 60,
+      };
+    });
+    flash(finishedMode === 'focus' ? 'Focus complete — break time' : 'Break over — back to focus');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pomoSeconds, pomoState.endTime]);
+
+  // Sync remaining to current preset when paused & idle
+  useEffect(() => {
+    if (pomoState.endTime) return;
+    const total = (pomoState.mode === 'focus' ? pomodoro.focus : pomodoro.break) * 60;
+    if (pomoState.remaining !== total) {
+      setPomoState((cur) => ({ ...cur, remaining: total }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pomodoro.focus, pomodoro.break, pomoState.mode, pomoState.endTime]);
+
+  // Inline avoids forward-reference; calls into the same logic as below.
+  const completeTaskForTodayInline = (taskId) => {
+    const k = todayKey();
+    setCompletions((prev) => {
+      const day = { ...(prev[k] || {}) };
+      const task = tasks.find((t) => t.id === taskId);
+      if (task && task.goalCount > 0) {
+        const cur = typeof day[taskId] === 'number' ? day[taskId] : 0;
+        day[taskId] = cur + 1;
+      } else {
+        day[taskId] = new Date().toISOString();
+      }
+      return { ...prev, [k]: day };
+    });
+  };
+
+  const pomoActions = {
+    toggle: () => {
+      setPomoState((cur) => {
+        if (cur.endTime) {
+          // Pause
+          return {
+            ...cur,
+            remaining: Math.max(0, Math.round((cur.endTime - Date.now()) / 1000)),
+            endTime: null,
+          };
+        }
+        // Start
+        const total = (cur.mode === 'focus' ? pomodoro.focus : pomodoro.break) * 60;
+        const r = cur.remaining > 0 ? cur.remaining : total;
+        return { ...cur, remaining: 0, endTime: Date.now() + r * 1000 };
+      });
+    },
+    reset: () => {
+      setPomoState((cur) => ({
+        ...cur,
+        endTime: null,
+        remaining: (cur.mode === 'focus' ? pomodoro.focus : pomodoro.break) * 60,
+      }));
+    },
+    switchMode: (m) => {
+      setPomoState((cur) => ({
+        ...cur,
+        mode: m,
+        endTime: null,
+        remaining: (m === 'focus' ? pomodoro.focus : pomodoro.break) * 60,
+      }));
+    },
+    setLinkedTaskId: (id) => setPomoState((cur) => ({ ...cur, linkedTaskId: id })),
+  };
+
+  // Service worker can postMessage when a system notification is clicked
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    const onMsg = (e) => {
+      if (e.data?.type === 'reminder-clicked' && e.data.id) {
+        // Mark as fired so the in-app alert flow handles the rest
+        setReminders((prev) =>
+          prev.map((r) => (r.id === e.data.id ? { ...r, fired: true } : r))
+        );
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', onMsg);
+    return () => navigator.serviceWorker.removeEventListener('message', onMsg);
   }, []);
 
   // Reminder firing
@@ -419,6 +589,8 @@ export default function App() {
     <>
       {booting && <Splash />}
 
+      <RouteLoader route={active + activeProfile} />
+
       {(ptr.pull > 0 || refreshSpin) && (
         <div
           className="fixed top-0 left-0 right-0 z-[60] flex items-center justify-center text-violet-500 transition-all pointer-events-none"
@@ -448,6 +620,8 @@ export default function App() {
             onOpenPalette={() => setPaletteOpen(true)}
             onOpenCapture={() => setCaptureOpen(true)}
             onOpenCheatSheet={() => setCheatOpen(true)}
+            onRestartTour={() => setOnboardingOpen(true)}
+            onInstallApp={() => setInstallOpen(true)}
             inboxCount={inbox.length}
             profiles={profiles}
             activeProfile={activeProfile}
@@ -490,7 +664,19 @@ export default function App() {
                     routineNotes={routineNotes}
                     setRoutineNotes={setRoutineNotes}
                   />
-                  <Pomodoro tasks={tasks} onCompleteRoutine={completeTaskForToday} settings={pomodoro} setSettings={setPomodoro} />
+                  <Pomodoro
+                    tasks={tasks}
+                    settings={pomodoro}
+                    setSettings={setPomodoro}
+                    state={{
+                      mode: pomoState.mode,
+                      running: !!pomoState.endTime,
+                      seconds: pomoSeconds,
+                      completedFocuses: pomoState.completedFocuses || 0,
+                      linkedTaskId: pomoState.linkedTaskId || '',
+                    }}
+                    actions={pomoActions}
+                  />
                 </>
               )}
               {active === 'tasks' && (
@@ -564,6 +750,8 @@ export default function App() {
           onQuickCapture={() => setCaptureOpen(true)}
           onExport={exportAll}
           onPrint={printToday}
+          onRestartTour={() => setOnboardingOpen(true)}
+          onInstallApp={() => setInstallOpen(true)}
         />
 
         <ReviewPrompt
@@ -593,6 +781,25 @@ export default function App() {
         />
 
         <CheatSheet open={cheatOpen} onClose={() => setCheatOpen(false)} />
+
+        <Onboarding
+          open={onboardingOpen}
+          onClose={() => {
+            setOnboardingOpen(false);
+            setOnboarded(true);
+          }}
+          setTasks={setTasks}
+          setGoals={setGoals}
+          flash={flash}
+        />
+
+        <InstallPrompt
+          open={installOpen}
+          onClose={() => {
+            setInstallOpen(false);
+            setInstallPromptShown(true);
+          }}
+        />
       </div>
     </>
   );

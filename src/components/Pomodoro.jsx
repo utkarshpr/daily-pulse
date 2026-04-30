@@ -1,72 +1,30 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Play, Pause, RotateCcw, Timer, Coffee, Settings, X } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { playChime, vibrate } from '../lib/chime';
 
 const FOCUS_PRESETS = [15, 25, 45, 60, 90];
 const BREAK_PRESETS = [3, 5, 10, 15, 20];
 
-export default function Pomodoro({ tasks, onCompleteRoutine, settings, setSettings }) {
+// Pomodoro is now a controlled view — App owns the timer state so it survives
+// navigation. `state` and the action callbacks are passed in.
+export default function Pomodoro({ tasks, settings, setSettings, state, actions }) {
   const focusMins = settings?.focus ?? 25;
   const breakMins = settings?.break ?? 5;
-  const [mode, setMode] = useState('focus'); // 'focus' | 'break'
-  const [seconds, setSeconds] = useState(focusMins * 60);
-  const [running, setRunning] = useState(false);
-  const [linkedTaskId, setLinkedTaskId] = useState('');
-  const [completedFocuses, setCompletedFocuses] = useState(0);
+  const { mode, running, seconds, completedFocuses, linkedTaskId } = state;
   const [showSettings, setShowSettings] = useState(false);
-  const tickRef = useRef(null);
 
   const total = (mode === 'focus' ? focusMins : breakMins) * 60;
   const progress = 1 - seconds / total;
 
-  // If the user changes the durations while idle, sync the displayed time
-  useEffect(() => {
-    if (!running) {
-      setSeconds((mode === 'focus' ? focusMins : breakMins) * 60);
-    }
-  }, [focusMins, breakMins, mode, running]);
-
+  // Tick re-render every second while running so the displayed seconds update.
+  // The actual timing comes from App.jsx which holds the endTime; this
+  // component just re-reads from state.
+  const [, force] = useState(0);
   useEffect(() => {
     if (!running) return;
-    tickRef.current = setInterval(() => {
-      setSeconds((s) => {
-        if (s <= 1) {
-          clearInterval(tickRef.current);
-          handleComplete();
-          return 0;
-        }
-        return s - 1;
-      });
-    }, 1000);
-    return () => clearInterval(tickRef.current);
-  }, [running, mode]);
-
-  const handleComplete = () => {
-    setRunning(false);
-    playChime();
-    vibrate();
-    if (mode === 'focus') {
-      setCompletedFocuses((n) => n + 1);
-      if (linkedTaskId && onCompleteRoutine) onCompleteRoutine(linkedTaskId);
-      setMode('break');
-      setSeconds(breakMins * 60);
-    } else {
-      setMode('focus');
-      setSeconds(focusMins * 60);
-    }
-  };
-
-  const reset = () => {
-    setRunning(false);
-    setSeconds(total);
-  };
-
-  const switchMode = (m) => {
-    setRunning(false);
-    setMode(m);
-    setSeconds((m === 'focus' ? focusMins : breakMins) * 60);
-  };
+    const t = setInterval(() => force((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [running]);
 
   const updateDurations = (next) => {
     const safe = {
@@ -77,7 +35,7 @@ export default function Pomodoro({ tasks, onCompleteRoutine, settings, setSettin
   };
 
   const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
-  const ss = String(seconds % 60).padStart(2, '0');
+  const ss = String(Math.max(0, seconds % 60)).padStart(2, '0');
 
   return (
     <div className="card p-5 relative overflow-hidden">
@@ -108,13 +66,13 @@ export default function Pomodoro({ tasks, onCompleteRoutine, settings, setSettin
           <div className="flex items-center gap-2">
             <div className="flex bg-white/60 dark:bg-white/5 rounded-full p-1 text-xs font-semibold">
               <button
-                onClick={() => switchMode('focus')}
+                onClick={() => actions.switchMode('focus')}
                 className={cn('px-3 py-1 rounded-full transition', mode === 'focus' ? 'bg-gradient-to-tr from-violet-600 to-fuchsia-500 text-white' : 'text-slate-500')}
               >
                 Focus
               </button>
               <button
-                onClick={() => switchMode('break')}
+                onClick={() => actions.switchMode('break')}
                 className={cn('px-3 py-1 rounded-full transition', mode === 'break' ? 'bg-gradient-to-tr from-emerald-500 to-teal-500 text-white' : 'text-slate-500')}
               >
                 Break
@@ -182,13 +140,10 @@ export default function Pomodoro({ tasks, onCompleteRoutine, settings, setSettin
         </div>
 
         <div className="flex items-center justify-center gap-2 mt-4">
-          <button
-            onClick={() => setRunning((r) => !r)}
-            className="btn-primary"
-          >
+          <button onClick={actions.toggle} className="btn-primary">
             {running ? <><Pause size={16} /> Pause</> : <><Play size={16} /> Start</>}
           </button>
-          <button onClick={reset} className="btn-ghost" aria-label="Reset">
+          <button onClick={actions.reset} className="btn-ghost" aria-label="Reset">
             <RotateCcw size={16} />
           </button>
         </div>
@@ -197,8 +152,8 @@ export default function Pomodoro({ tasks, onCompleteRoutine, settings, setSettin
           <div className="mt-4 pt-4 border-t border-slate-200/70 dark:border-white/10">
             <label className="text-[10px] uppercase tracking-wider text-slate-500">Auto-check routine on completion (optional)</label>
             <select
-              value={linkedTaskId}
-              onChange={(e) => setLinkedTaskId(e.target.value)}
+              value={linkedTaskId || ''}
+              onChange={(e) => actions.setLinkedTaskId(e.target.value)}
               className="input mt-1.5 text-sm"
             >
               <option value="">— None —</option>
@@ -214,17 +169,41 @@ export default function Pomodoro({ tasks, onCompleteRoutine, settings, setSettin
 }
 
 function DurationField({ label, value, presets, onChange, gradient, max = 60 }) {
+  // Local draft so the user can clear & retype freely; we only push a valid
+  // value to the parent on blur or Enter.
+  const [draft, setDraft] = React.useState(String(value));
+  React.useEffect(() => { setDraft(String(value)); }, [value]);
+
+  const commit = () => {
+    const n = Number(draft);
+    if (!Number.isFinite(n) || n < 1) {
+      setDraft(String(value));
+      return;
+    }
+    const clamped = Math.min(max, Math.max(1, Math.floor(n)));
+    if (clamped !== value) onChange(clamped);
+    setDraft(String(clamped));
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">{label}</span>
         <div className="flex items-center gap-1.5">
           <input
-            type="number"
-            min="1"
-            max={max}
-            value={value}
-            onChange={(e) => onChange(Number(e.target.value))}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, ''))}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                commit();
+                e.currentTarget.blur();
+              }
+            }}
             className="w-16 text-sm text-center bg-white/80 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 rounded-md px-1.5 py-1 tabular-nums focus:outline-none focus:ring-2 focus:ring-violet-500"
           />
           <span className="text-[10px] text-slate-500">min</span>

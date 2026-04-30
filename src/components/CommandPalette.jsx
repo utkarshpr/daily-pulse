@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, Calendar, ListChecks, StickyNote, Bell, BarChart3, CalendarDays, Target, Plus, Sun, Moon, Download } from 'lucide-react';
+import { Search, Calendar, ListChecks, StickyNote, Bell, BarChart3, CalendarDays, Target, Plus, Sun, Moon, Download, Compass, Smartphone } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-export default function CommandPalette({ open, onClose, navigate, tasks, notes, reminders, theme, setTheme, onNewNote, onNewReminder, onExport, onPrint, onQuickCapture }) {
+export default function CommandPalette({ open, onClose, navigate, tasks, notes, reminders, theme, setTheme, onNewNote, onNewReminder, onExport, onPrint, onQuickCapture, onRestartTour, onInstallApp }) {
   const [q, setQ] = useState('');
   const [active, setActive] = useState(0);
   const inputRef = useRef(null);
@@ -32,6 +32,8 @@ export default function CommandPalette({ open, onClose, navigate, tasks, notes, 
       { id: 'a-theme', label: theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme', icon: theme === 'dark' ? Sun : Moon, run: () => setTheme(theme === 'dark' ? 'light' : 'dark') },
       { id: 'a-export', label: 'Export data', icon: Download, run: onExport },
       { id: 'a-print', label: 'Print today', icon: Download, run: onPrint },
+      ...(onRestartTour ? [{ id: 'a-tour', label: 'Restart tour', icon: Compass, run: onRestartTour }] : []),
+      ...(onInstallApp ? [{ id: 'a-install', label: 'Install app to home screen', icon: Smartphone, run: onInstallApp }] : []),
     ];
     const noteResults = notes.slice(0, 50).map((n) => ({
       id: 'n-' + n.id,

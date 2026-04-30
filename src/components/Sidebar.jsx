@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, ListChecks, StickyNote, Bell, BarChart3, Calendar, Download, Upload, Menu, X, CalendarDays, Target, Lock, Unlock, Printer, Search, Inbox, BookOpen, Volume2, Keyboard, FileSpreadsheet } from 'lucide-react';
+import { Sparkles, ListChecks, StickyNote, Bell, BarChart3, Calendar, Download, Upload, Menu, X, CalendarDays, Target, Lock, Unlock, Printer, Search, Inbox, BookOpen, Volume2, Keyboard, FileSpreadsheet, Compass, Smartphone } from 'lucide-react';
 import { cn } from '../lib/utils';
 import ThemeToggle from './ThemeToggle';
 import { PRESETS } from '../lib/presets';
@@ -22,7 +22,7 @@ const MOBILE_NAV = NAV.filter((n) => ['today', 'tasks', 'notes', 'reminders', 'c
 export default function Sidebar({
   active, setActive, theme, setTheme, preset, setPreset,
   onExport, onImport, onEncrypt, onDecrypt, onPrint, onCsvExport,
-  onOpenPalette, onOpenCapture, onOpenCheatSheet,
+  onOpenPalette, onOpenCapture, onOpenCheatSheet, onRestartTour, onInstallApp,
   inboxCount = 0,
   soundPack, setSoundPack,
   profiles, activeProfile, onSwitchProfile, onCreateProfile, onDeleteProfile,
@@ -161,6 +161,12 @@ export default function Sidebar({
             <div className="mb-3"><PresetSwatches /></div>
             <div className="mb-3"><SoundPicker /></div>
             <button onClick={onOpenCheatSheet} className="w-full btn-ghost justify-start mb-1.5"><Keyboard size={14} /> Keyboard shortcuts</button>
+            {onRestartTour && (
+              <button onClick={onRestartTour} className="w-full btn-ghost justify-start mb-1.5"><Compass size={14} /> Restart tour</button>
+            )}
+            {onInstallApp && (
+              <button onClick={onInstallApp} className="w-full btn-ghost justify-start mb-1.5"><Smartphone size={14} /> Install app</button>
+            )}
             <button onClick={onExport} className="w-full btn-ghost justify-start mb-1.5"><Download size={14} /> Export JSON</button>
             <button onClick={onCsvExport} className="w-full btn-ghost justify-start mb-1.5"><FileSpreadsheet size={14} /> Export CSV</button>
             <button onClick={() => fileRef.current?.click()} className="w-full btn-ghost justify-start mb-1.5"><Upload size={14} /> Import JSON</button>
@@ -219,10 +225,16 @@ export default function Sidebar({
             <ThemeToggle theme={theme} setTheme={setTheme} />
             <PresetSwatches />
             <SoundPicker />
-            <button onClick={onOpenCheatSheet} className="w-full btn-ghost text-[11px] justify-center">
-              <Keyboard size={12} /> Shortcuts
-              <kbd className="ml-auto text-[10px] bg-white/60 dark:bg-white/10 px-1 py-0 rounded border border-slate-200 dark:border-white/10">?</kbd>
-            </button>
+            <div className="grid grid-cols-2 gap-1.5">
+              <button onClick={onOpenCheatSheet} className="btn-ghost text-[11px]">
+                <Keyboard size={12} /> Shortcuts
+              </button>
+              {onRestartTour && (
+                <button onClick={onRestartTour} className="btn-ghost text-[11px]">
+                  <Compass size={12} /> Tour
+                </button>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-1.5">
               <button onClick={onExport} className="btn-ghost text-[11px] !px-2"><Download size={12} /> JSON</button>
               <button onClick={onCsvExport} className="btn-ghost text-[11px] !px-2"><FileSpreadsheet size={12} /> CSV</button>

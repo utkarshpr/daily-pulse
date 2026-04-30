@@ -28,6 +28,8 @@ export default function Reminders({ reminders, setReminders, confirm, flash }) {
     if (typeof Notification === 'undefined') return;
     const p = await Notification.requestPermission();
     setPermission(p);
+    if (p === 'granted') flash?.('Notifications enabled — reminders will fire even when this tab is closed');
+    else if (p === 'denied') flash?.('Notifications blocked — re-enable in browser site settings', true);
   };
 
   const startNew = () => {
@@ -110,10 +112,20 @@ export default function Reminders({ reminders, setReminders, confirm, flash }) {
           <p className="text-slate-500 text-sm">Time-based nudges. Browser notifications fire while the app is open.</p>
         </div>
         <div className="flex items-center gap-2">
-          {permission !== 'granted' && (
-            <button className="btn-ghost" onClick={requestPerm}>
+          {permission === 'default' && (
+            <button className="btn-ghost" onClick={requestPerm} title="Allow background reminders">
               <Bell size={16} /> Enable notifications
             </button>
+          )}
+          {permission === 'denied' && (
+            <span className="chip text-[10px] bg-rose-500/15 text-rose-600 dark:text-rose-400" title="Re-enable in browser site settings">
+              <Bell size={11} /> Notifications blocked
+            </span>
+          )}
+          {permission === 'granted' && (
+            <span className="chip text-[10px] bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" title="Reminders fire in the background">
+              <Bell size={11} /> Background ready
+            </span>
           )}
           <button className="btn-primary" onClick={startNew} data-action="new-reminder">
             <Plus size={16} /> New reminder
@@ -239,23 +251,31 @@ export default function Reminders({ reminders, setReminders, confirm, flash }) {
             return (
               <li
                 key={r.id}
+                onClick={() => toggleDone(r.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    toggleDone(r.id);
+                  }
+                }}
                 className={cn(
-                  'card p-4 flex items-center gap-3 animate-slide-in',
+                  'card p-4 flex items-center gap-3 animate-slide-in cursor-pointer select-none active:scale-[0.99] transition-transform',
                   r.done && 'opacity-60'
                 )}
               >
-                <button
-                  onClick={() => toggleDone(r.id)}
+                <div
                   className={cn(
                     'shrink-0 size-9 rounded-xl grid place-items-center transition border',
                     r.done
                       ? 'bg-gradient-to-tr from-emerald-500 to-teal-500 text-white border-transparent shadow'
-                      : 'border-slate-300 dark:border-white/15 hover:border-slate-400'
+                      : 'border-slate-300 dark:border-white/15'
                   )}
-                  aria-label={r.done ? 'Mark not done' : 'Mark done'}
+                  aria-hidden="true"
                 >
                   <Check size={18} className={cn('transition', r.done ? 'opacity-100' : 'opacity-0')} strokeWidth={3} />
-                </button>
+                </div>
                 <div className="flex-1 min-w-0">
                   <div className={cn('font-medium truncate', r.done && 'line-through')}>{r.title}</div>
                   <div className="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
@@ -292,7 +312,7 @@ export default function Reminders({ reminders, setReminders, confirm, flash }) {
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                   <button className="btn-ghost !px-3 !py-2" onClick={() => startEdit(r)} aria-label="Edit">
                     <Pencil size={15} />
                   </button>
