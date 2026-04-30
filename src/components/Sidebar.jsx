@@ -131,7 +131,10 @@ export default function Sidebar({
       </div>
 
       {/* Mobile bottom tab bar */}
-      <nav className="lg:hidden fixed bottom-3 left-3 right-3 z-30 card p-1.5 flex items-center justify-between overflow-x-auto scroll-area no-print">
+      <nav
+        className="lg:hidden fixed left-3 right-3 z-30 card p-1.5 flex items-center justify-between overflow-x-auto scroll-area no-print"
+        style={{ bottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+      >
         {MOBILE_NAV.map((n) => (<NavButton key={n.id} item={n} compact />))}
       </nav>
 
