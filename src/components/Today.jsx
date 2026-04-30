@@ -299,7 +299,10 @@ function RoutineRow({ task, value, isSkipped, note, onToggle, onAdjust, onMenu, 
         }
       }}
       className={cn(
-        'group flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl transition select-none cursor-pointer active:scale-[0.99]',
+        'group flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl transition select-none cursor-pointer active:scale-[0.99] bg-gradient-to-r border',
+        c.tintFrom,
+        c.tintTo,
+        c.border,
         (checked || isSkipped) && 'opacity-70',
         muted && 'opacity-60'
       )}

@@ -35,7 +35,10 @@ export default function GoalsView({ goals, setGoals, tasks, setTasks, completion
   };
 
   const save = () => {
-    if (!draft.title.trim()) return;
+    if (!draft.title.trim()) {
+      flash?.('Goal title is required', true);
+      return;
+    }
     if (editing === 'new') {
       setGoals((prev) => [
         ...prev,

@@ -37,12 +37,12 @@ export const uid = () =>
   Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
 export const PALETTE = [
-  { name: 'violet', from: 'from-violet-500', to: 'to-fuchsia-500', ring: 'ring-violet-500/40', text: 'text-violet-600', bg: 'bg-violet-500' },
-  { name: 'cyan', from: 'from-cyan-500', to: 'to-sky-500', ring: 'ring-cyan-500/40', text: 'text-cyan-600', bg: 'bg-cyan-500' },
-  { name: 'emerald', from: 'from-emerald-500', to: 'to-teal-500', ring: 'ring-emerald-500/40', text: 'text-emerald-600', bg: 'bg-emerald-500' },
-  { name: 'amber', from: 'from-amber-500', to: 'to-orange-500', ring: 'ring-amber-500/40', text: 'text-amber-600', bg: 'bg-amber-500' },
-  { name: 'rose', from: 'from-rose-500', to: 'to-pink-500', ring: 'ring-rose-500/40', text: 'text-rose-600', bg: 'bg-rose-500' },
-  { name: 'indigo', from: 'from-indigo-500', to: 'to-blue-500', ring: 'ring-indigo-500/40', text: 'text-indigo-600', bg: 'bg-indigo-500' },
+  { name: 'violet', from: 'from-violet-500', to: 'to-fuchsia-500', ring: 'ring-violet-500/40', text: 'text-violet-600', bg: 'bg-violet-500', tintFrom: 'from-violet-500/15', tintTo: 'to-fuchsia-500/10', border: 'border-violet-400/30 dark:border-violet-400/20' },
+  { name: 'cyan', from: 'from-cyan-500', to: 'to-sky-500', ring: 'ring-cyan-500/40', text: 'text-cyan-600', bg: 'bg-cyan-500', tintFrom: 'from-cyan-500/15', tintTo: 'to-sky-500/10', border: 'border-cyan-400/30 dark:border-cyan-400/20' },
+  { name: 'emerald', from: 'from-emerald-500', to: 'to-teal-500', ring: 'ring-emerald-500/40', text: 'text-emerald-600', bg: 'bg-emerald-500', tintFrom: 'from-emerald-500/15', tintTo: 'to-teal-500/10', border: 'border-emerald-400/30 dark:border-emerald-400/20' },
+  { name: 'amber', from: 'from-amber-500', to: 'to-orange-500', ring: 'ring-amber-500/40', text: 'text-amber-600', bg: 'bg-amber-500', tintFrom: 'from-amber-500/15', tintTo: 'to-orange-500/10', border: 'border-amber-400/30 dark:border-amber-400/20' },
+  { name: 'rose', from: 'from-rose-500', to: 'to-pink-500', ring: 'ring-rose-500/40', text: 'text-rose-600', bg: 'bg-rose-500', tintFrom: 'from-rose-500/15', tintTo: 'to-pink-500/10', border: 'border-rose-400/30 dark:border-rose-400/20' },
+  { name: 'indigo', from: 'from-indigo-500', to: 'to-blue-500', ring: 'ring-indigo-500/40', text: 'text-indigo-600', bg: 'bg-indigo-500', tintFrom: 'from-indigo-500/15', tintTo: 'to-blue-500/10', border: 'border-indigo-400/30 dark:border-indigo-400/20' },
 ];
 
 export const colorFor = (name) => PALETTE.find((p) => p.name === name) || PALETTE[0];

@@ -11,7 +11,7 @@ export default function EncryptDialog({ open, mode, onClose, getPlaintext, onDec
   if (!open) return null;
 
   const handleEncrypt = async () => {
-    if (!password) return flash?.('Enter a password', true);
+    if (!password.trim()) return flash?.('Enter a password', true);
     setBusy(true);
     try {
       const pt = getPlaintext();
@@ -26,7 +26,7 @@ export default function EncryptDialog({ open, mode, onClose, getPlaintext, onDec
   };
 
   const handleDecrypt = async () => {
-    if (!password || !input.trim()) return flash?.('Paste blob and enter password', true);
+    if (!password.trim() || !input.trim()) return flash?.('Paste blob and enter password', true);
     setBusy(true);
     try {
       const pt = await decryptString(input.trim(), password);

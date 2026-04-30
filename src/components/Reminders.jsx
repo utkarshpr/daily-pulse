@@ -4,7 +4,9 @@ import { uid, cn } from '../lib/utils';
 import { REPEAT_OPTIONS, labelForRepeat } from '../lib/recurrence';
 import { parseReminder } from '../lib/nlparse';
 
-const EMPTY = { title: '', when: '', notes: '', repeat: 'none', priority: 'medium' };
+const EMPTY = { title: '', date: '', time: '', notes: '', repeat: 'none', priority: 'medium' };
+
+const DEFAULT_TIME = '09:00';
 
 const PRIORITIES = [
   { value: 'low', label: 'Low', tint: 'from-slate-400 to-slate-500' },
@@ -12,11 +14,15 @@ const PRIORITIES = [
   { value: 'high', label: 'High', tint: 'from-rose-500 to-pink-500' },
 ];
 
-const toLocalInput = (iso) => {
-  if (!iso) return '';
+const pad2 = (n) => String(n).padStart(2, '0');
+
+const splitIso = (iso) => {
+  if (!iso) return { date: '', time: '' };
   const d = new Date(iso);
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return {
+    date: `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`,
+    time: `${pad2(d.getHours())}:${pad2(d.getMinutes())}`,
+  };
 };
 
 export default function Reminders({ reminders, setReminders, confirm, flash }) {
@@ -39,9 +45,11 @@ export default function Reminders({ reminders, setReminders, confirm, flash }) {
 
   const startEdit = (r) => {
     setEditing(r.id);
+    const { date, time } = splitIso(r.when);
     setDraft({
       title: r.title,
-      when: toLocalInput(r.when),
+      date,
+      time,
       notes: r.notes || '',
       repeat: r.repeat || 'none',
       priority: r.priority || 'medium',
@@ -50,12 +58,19 @@ export default function Reminders({ reminders, setReminders, confirm, flash }) {
 
   const applySmartInput = (raw) => {
     const parsed = parseReminder(raw);
-    setDraft((prev) => ({
-      ...prev,
-      title: parsed.title || prev.title,
-      when: parsed.when ? toLocalInput(parsed.when) : prev.when,
-      repeat: parsed.repeat !== 'none' ? parsed.repeat : prev.repeat,
-    }));
+    setDraft((prev) => {
+      const next = {
+        ...prev,
+        title: parsed.title || prev.title,
+        repeat: parsed.repeat === 'none' ? prev.repeat : parsed.repeat,
+      };
+      if (parsed.when) {
+        const { date, time } = splitIso(parsed.when);
+        next.date = date;
+        next.time = time;
+      }
+      return next;
+    });
     flash?.('Parsed — review the time before saving');
   };
 
@@ -65,8 +80,15 @@ export default function Reminders({ reminders, setReminders, confirm, flash }) {
   };
 
   const save = () => {
-    if (!draft.title.trim() || !draft.when) return;
-    const iso = new Date(draft.when).toISOString();
+    if (!draft.title.trim()) {
+      flash?.('Reminder title is required', true);
+      return;
+    }
+    if (!draft.date) {
+      flash?.('Pick a date for the reminder', true);
+      return;
+    }
+    const iso = new Date(`${draft.date}T${draft.time || DEFAULT_TIME}`).toISOString();
     if (editing === 'new') {
       setReminders((prev) => [
         { id: uid(), title: draft.title.trim(), when: iso, notes: draft.notes, repeat: draft.repeat, priority: draft.priority, done: false, fired: false },
@@ -148,15 +170,36 @@ export default function Reminders({ reminders, setReminders, confirm, flash }) {
               />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-wider text-slate-500">When</label>
+              <label className="text-xs uppercase tracking-wider text-slate-500">Date</label>
               <input
-                type="datetime-local"
+                type="date"
                 className="input mt-1"
-                value={draft.when}
-                onChange={(e) => setDraft({ ...draft, when: e.target.value })}
+                value={draft.date}
+                onChange={(e) => setDraft({ ...draft, date: e.target.value })}
               />
             </div>
             <div>
+              <label className="text-xs uppercase tracking-wider text-slate-500 flex items-center justify-between">
+                <span>Time (optional)</span>
+                {draft.time && (
+                  <button
+                    type="button"
+                    className="text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 normal-case tracking-normal"
+                    onClick={() => setDraft({ ...draft, time: '' })}
+                  >
+                    Clear
+                  </button>
+                )}
+              </label>
+              <input
+                type="time"
+                className="input mt-1"
+                value={draft.time}
+                onChange={(e) => setDraft({ ...draft, time: e.target.value })}
+              />
+              <p className="text-[10px] text-slate-400 mt-1">Leave blank to default to {DEFAULT_TIME}.</p>
+            </div>
+            <div className="md:col-span-2">
               <label className="text-xs uppercase tracking-wider text-slate-500">Notes (optional)</label>
               <input
                 className="input mt-1"

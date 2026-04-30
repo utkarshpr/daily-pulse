@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, ListChecks, StickyNote, Bell, BarChart3, Calendar, Download, Upload, Menu, X, CalendarDays, Target, Lock, Unlock, Printer, Search, Inbox, BookOpen, Volume2, Keyboard, FileSpreadsheet, Compass, Smartphone } from 'lucide-react';
+import { Sparkles, ListChecks, StickyNote, Bell, BarChart3, Calendar, Download, Upload, Menu, X, CalendarDays, Target, Lock, Unlock, Printer, Search, Inbox, BookOpen, Volume2, Keyboard, FileSpreadsheet, Compass, Smartphone, ChevronDown, HelpCircle, Database } from 'lucide-react';
 import { cn } from '../lib/utils';
 import ThemeToggle from './ThemeToggle';
 import { PRESETS } from '../lib/presets';
@@ -105,7 +105,10 @@ export default function Sidebar({
   return (
     <>
       {/* Mobile top bar */}
-      <div className="lg:hidden card p-3 flex items-center gap-2 sticky top-2 z-40">
+      <div
+        className="lg:hidden card p-3 flex items-center gap-2 sticky z-40"
+        style={{ top: 'calc(0.5rem + env(safe-area-inset-top))' }}
+      >
         <div className="size-9 rounded-xl bg-gradient-to-tr from-violet-600 to-cyan-500 grid place-items-center text-white shadow-lg shadow-violet-500/30 shrink-0">
           <Sparkles size={18} />
         </div>
@@ -141,7 +144,14 @@ export default function Sidebar({
       {/* Mobile drawer */}
       {drawerOpen && (
         <div className="lg:hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm animate-fade-in" onClick={() => setDrawerOpen(false)}>
-          <div className="absolute right-3 top-3 left-3 card p-4 animate-pop-in max-h-[90vh] overflow-y-auto scroll-area" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="absolute right-3 left-3 card p-4 pt-5 animate-pop-in overflow-y-auto scroll-area"
+            style={{
+              top: 'calc(1rem + env(safe-area-inset-top))',
+              maxHeight: 'calc(100vh - 2rem - env(safe-area-inset-top) - env(safe-area-inset-bottom))',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between mb-3">
               <div className="font-semibold">Settings</div>
               <button onClick={() => setDrawerOpen(false)} className="size-8 rounded-lg bg-white/60 dark:bg-white/5 border border-white/60 dark:border-white/10 grid place-items-center" aria-label="Close">
@@ -163,19 +173,37 @@ export default function Sidebar({
             <div className="mb-3"><div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1.5 px-1">Theme</div><ThemeToggle theme={theme} setTheme={setTheme} /></div>
             <div className="mb-3"><PresetSwatches /></div>
             <div className="mb-3"><SoundPicker /></div>
-            <button onClick={onOpenCheatSheet} className="w-full btn-ghost justify-start mb-1.5"><Keyboard size={14} /> Keyboard shortcuts</button>
-            {onRestartTour && (
-              <button onClick={onRestartTour} className="w-full btn-ghost justify-start mb-1.5"><Compass size={14} /> Restart tour</button>
-            )}
-            {onInstallApp && (
-              <button onClick={onInstallApp} className="w-full btn-ghost justify-start mb-1.5"><Smartphone size={14} /> Install app</button>
-            )}
-            <button onClick={onExport} className="w-full btn-ghost justify-start mb-1.5"><Download size={14} /> Export JSON</button>
-            <button onClick={onCsvExport} className="w-full btn-ghost justify-start mb-1.5"><FileSpreadsheet size={14} /> Export CSV</button>
-            <button onClick={() => fileRef.current?.click()} className="w-full btn-ghost justify-start mb-1.5"><Upload size={14} /> Import JSON</button>
-            <button onClick={onEncrypt} className="w-full btn-ghost justify-start mb-1.5"><Lock size={14} /> Encrypted backup</button>
-            <button onClick={onDecrypt} className="w-full btn-ghost justify-start mb-1.5"><Unlock size={14} /> Restore from blob</button>
-            <button onClick={onPrint} className="w-full btn-ghost justify-start"><Printer size={14} /> Print today</button>
+
+            <details className="group rounded-xl border border-slate-200/70 dark:border-white/10 mb-2 bg-white/40 dark:bg-white/[0.02]">
+              <summary className="cursor-pointer list-none flex items-center justify-between px-3 py-2.5 text-sm font-medium select-none">
+                <span className="flex items-center gap-2"><HelpCircle size={14} /> Help &amp; install</span>
+                <ChevronDown size={14} className="transition-transform group-open:rotate-180 text-slate-400" />
+              </summary>
+              <div className="p-2 pt-0 space-y-1">
+                <button onClick={onOpenCheatSheet} className="w-full btn-ghost justify-start"><Keyboard size={14} /> Keyboard shortcuts</button>
+                {onRestartTour && (
+                  <button onClick={onRestartTour} className="w-full btn-ghost justify-start"><Compass size={14} /> Restart tour</button>
+                )}
+                {onInstallApp && (
+                  <button onClick={onInstallApp} className="w-full btn-ghost justify-start"><Smartphone size={14} /> Install app</button>
+                )}
+              </div>
+            </details>
+
+            <details className="group rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/40 dark:bg-white/[0.02]">
+              <summary className="cursor-pointer list-none flex items-center justify-between px-3 py-2.5 text-sm font-medium select-none">
+                <span className="flex items-center gap-2"><Database size={14} /> Backup &amp; data</span>
+                <ChevronDown size={14} className="transition-transform group-open:rotate-180 text-slate-400" />
+              </summary>
+              <div className="p-2 pt-0 space-y-1">
+                <button onClick={onExport} className="w-full btn-ghost justify-start"><Download size={14} /> Export JSON</button>
+                <button onClick={onCsvExport} className="w-full btn-ghost justify-start"><FileSpreadsheet size={14} /> Export CSV</button>
+                <button onClick={() => fileRef.current?.click()} className="w-full btn-ghost justify-start"><Upload size={14} /> Import JSON</button>
+                <button onClick={onEncrypt} className="w-full btn-ghost justify-start"><Lock size={14} /> Encrypted backup</button>
+                <button onClick={onDecrypt} className="w-full btn-ghost justify-start"><Unlock size={14} /> Restore from blob</button>
+                <button onClick={onPrint} className="w-full btn-ghost justify-start"><Printer size={14} /> Print today</button>
+              </div>
+            </details>
           </div>
         </div>
       )}

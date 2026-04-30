@@ -13,6 +13,7 @@ const CATEGORY_SUGGESTIONS = ['Morning', 'Work', 'Health', 'Learning', 'Evening'
 export default function Tasks({ tasks, setTasks, goals = [], setGoals, confirm, flash }) {
   const [editing, setEditing] = useState(null);
   const [draft, setDraft] = useState(EMPTY);
+  const [targetInput, setTargetInput] = useState('');
   const [bulkMode, setBulkMode] = useState(false);
   const [selected, setSelected] = useState(new Set());
   const drag = useDragReorder(tasks, setTasks);
@@ -20,20 +21,26 @@ export default function Tasks({ tasks, setTasks, goals = [], setGoals, confirm, 
   const startNew = () => {
     setEditing('new');
     setDraft(EMPTY);
+    setTargetInput('');
   };
 
   const startEdit = (task) => {
     setEditing(task.id);
     setDraft({ ...EMPTY, ...task });
+    setTargetInput((task.goalCount || 0) > 0 ? String(task.goalCount) : '');
   };
 
   const cancel = () => {
     setEditing(null);
     setDraft(EMPTY);
+    setTargetInput('');
   };
 
   const save = () => {
-    if (!draft.name.trim()) return;
+    if (!draft.name.trim()) {
+      flash?.('Routine name is required', true);
+      return;
+    }
     if (editing === 'new') {
       setTasks((prev) => [...prev, { ...draft, id: uid(), name: draft.name.trim() }]);
       flash?.('Routine added');
@@ -192,7 +199,15 @@ export default function Tasks({ tasks, setTasks, goals = [], setGoals, confirm, 
                   type="checkbox"
                   className="size-4 accent-violet-500"
                   checked={(draft.goalCount || 0) > 0}
-                  onChange={(e) => setDraft({ ...draft, goalCount: e.target.checked ? 1 : 0 })}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setDraft({ ...draft, goalCount: 1 });
+                      setTargetInput('1');
+                    } else {
+                      setDraft({ ...draft, goalCount: 0 });
+                      setTargetInput('');
+                    }
+                  }}
                 />
                 <span className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Track a daily count instead of a single check</span>
               </label>
@@ -203,9 +218,28 @@ export default function Tasks({ tasks, setTasks, goals = [], setGoals, confirm, 
                     <input
                       type="number"
                       min="1"
+                      inputMode="numeric"
                       className="input mt-1"
-                      value={draft.goalCount}
-                      onChange={(e) => setDraft({ ...draft, goalCount: Math.max(1, Number(e.target.value) || 1) })}
+                      value={targetInput}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setTargetInput(v);
+                        if (v === '') return;
+                        const n = Math.floor(Number(v));
+                        if (Number.isFinite(n) && n >= 1) {
+                          setDraft((d) => ({ ...d, goalCount: n }));
+                        }
+                      }}
+                      onBlur={() => {
+                        const n = Math.floor(Number(targetInput));
+                        if (!Number.isFinite(n) || n < 1) {
+                          setTargetInput('1');
+                          setDraft((d) => ({ ...d, goalCount: 1 }));
+                        } else {
+                          setTargetInput(String(n));
+                          setDraft((d) => ({ ...d, goalCount: n }));
+                        }
+                      }}
                     />
                   </div>
                   <div>
@@ -295,7 +329,10 @@ export default function Tasks({ tasks, setTasks, goals = [], setGoals, confirm, 
                 onDrop={drag.onDrop(t.id)}
                 onDragEnd={drag.onDragEnd}
                 className={cn(
-                  'card p-4 flex items-center gap-3 animate-slide-in transition',
+                  'card p-4 flex items-center gap-3 animate-slide-in transition bg-gradient-to-r border',
+                  c.tintFrom,
+                  c.tintTo,
+                  c.border,
                   drag.dragOverId === t.id && 'ring-2 ring-violet-500/60',
                   isSel && 'ring-2 ring-violet-500',
                   bulkMode && 'cursor-pointer'
