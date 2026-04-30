@@ -1,9 +1,68 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Plus, Pencil, Trash2, Save, X, Search, Pin, PinOff, Mic, MicOff, Eye, Pencil as PencilIcon, Hash, Image as ImageIcon, Link2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Save, X, Search, Pin, PinOff, Mic, MicOff, Eye, Pencil as PencilIcon, Hash, Image as ImageIcon, Link2, ChevronDown, FileText, Users, GitBranch, Lightbulb, BookOpen } from 'lucide-react';
 import { marked } from 'marked';
 import { uid, NOTE_COLORS, noteColor, cn } from '../lib/utils';
 
 marked.setOptions({ breaks: true, gfm: true });
+
+const todayStr = () => {
+  const d = new Date();
+  return d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+};
+
+const NOTE_TEMPLATES = [
+  {
+    key: 'blank',
+    label: 'Blank',
+    icon: FileText,
+    color: 'sun',
+    build: () => ({ title: '', body: '', tags: [] }),
+  },
+  {
+    key: 'journal',
+    label: 'Daily journal',
+    icon: BookOpen,
+    color: 'lilac',
+    build: () => ({
+      title: `Journal — ${todayStr()}`,
+      body: '## Three things that went well\n- \n- \n- \n\n## What I learned\n\n## Tomorrow\n- ',
+      tags: ['journal'],
+    }),
+  },
+  {
+    key: 'meeting',
+    label: 'Meeting notes',
+    icon: Users,
+    color: 'sky',
+    build: () => ({
+      title: 'Meeting — ',
+      body: `**Date:** ${todayStr()}\n**Attendees:** \n\n## Agenda\n- \n\n## Discussion\n\n## Action items\n- [ ] `,
+      tags: ['meeting'],
+    }),
+  },
+  {
+    key: 'decision',
+    label: 'Decision log',
+    icon: GitBranch,
+    color: 'mint',
+    build: () => ({
+      title: 'Decision: ',
+      body: `**Date:** ${todayStr()}\n**Owner:** \n\n## Context\n\n## Decision\n\n## Trade-offs\n\n## Follow-ups\n- `,
+      tags: ['decision'],
+    }),
+  },
+  {
+    key: 'idea',
+    label: 'Idea capture',
+    icon: Lightbulb,
+    color: 'rose',
+    build: () => ({
+      title: 'Idea: ',
+      body: '## What if\n\n## Why now\n\n## Next step\n- ',
+      tags: ['idea'],
+    }),
+  },
+];
 
 const renderMarkdown = (body) => {
   if (!body) return '';
@@ -83,11 +142,19 @@ export default function Notes({ notes, setNotes, confirm, flash }) {
     return [...list].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || b.updatedAt - a.updatedAt);
   }, [notes, query, activeTag]);
 
-  const startNew = () => {
+  const startNew = (template = null) => {
     setEditing('new');
-    setDraft(EMPTY);
+    if (template) {
+      const built = template.build();
+      setDraft({ ...EMPTY, color: template.color || EMPTY.color, ...built });
+    } else {
+      setDraft(EMPTY);
+    }
     setPreview(false);
+    setTemplatesOpen(false);
   };
+
+  const [templatesOpen, setTemplatesOpen] = useState(false);
 
   const startEdit = (n) => {
     setEditing(n.id);
@@ -252,9 +319,49 @@ export default function Notes({ notes, setNotes, confirm, flash }) {
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
-          <button className="btn-primary" onClick={startNew} data-action="new-note">
-            <Plus size={16} /> New note
-          </button>
+          <div className="relative">
+            <div className="flex">
+              <button className="btn-primary !rounded-r-none !pr-3" onClick={() => startNew()} data-action="new-note">
+                <Plus size={16} /> New note
+              </button>
+              <button
+                className="btn-primary !rounded-l-none !px-2 !ml-px border-l border-white/20"
+                onClick={() => setTemplatesOpen((v) => !v)}
+                aria-label="Choose a template"
+                title="Templates"
+              >
+                <ChevronDown size={14} className={cn('transition-transform', templatesOpen && 'rotate-180')} />
+              </button>
+            </div>
+            {templatesOpen && (
+              <>
+                <button
+                  className="fixed inset-0 z-40 cursor-default"
+                  onClick={() => setTemplatesOpen(false)}
+                  aria-label="Close template menu"
+                  tabIndex={-1}
+                />
+                <div className="absolute right-0 top-full mt-1.5 z-50 card p-1.5 w-56 animate-pop-in">
+                  <div className="text-[10px] uppercase tracking-wider text-slate-500 px-2 py-1">Start from a template</div>
+                  {NOTE_TEMPLATES.map((tpl) => {
+                    const Icon = tpl.icon;
+                    return (
+                      <button
+                        key={tpl.key}
+                        onClick={() => startNew(tpl.key === 'blank' ? null : tpl)}
+                        className="w-full flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-white/60 dark:hover:bg-white/5 transition text-left"
+                      >
+                        <div className="size-7 rounded-md bg-gradient-to-tr from-violet-500/20 to-cyan-500/20 grid place-items-center text-violet-600 dark:text-violet-400 shrink-0">
+                          <Icon size={14} />
+                        </div>
+                        <span className="text-sm font-medium">{tpl.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 

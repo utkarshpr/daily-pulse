@@ -63,10 +63,12 @@ export const HABIT_GROUPS = [
 ];
 
 export const STARTER_ROUTINES = [
-  { name: 'Hydrate', icon: '💧', goalCount: 8, unit: 'glasses', category: 'Morning', color: 'cyan' },
-  { name: 'Move your body', icon: '🏃', goalCount: 0, category: 'Health', color: 'emerald' },
-  { name: 'Read 20 minutes', icon: '📚', goalCount: 20, unit: 'min', category: 'Learning', color: 'amber' },
-  { name: 'Reflect & journal', icon: '📓', goalCount: 0, category: 'Evening', color: 'violet' },
+  { name: 'Hydrate · Paani peena', icon: '💧', goalCount: 8, unit: 'glasses', category: 'Morning', color: 'cyan', time: '08:00' },
+  { name: 'Subah ki sair · Morning walk', icon: '🚶', goalCount: 0, category: 'Health', color: 'emerald', time: '07:00' },
+  { name: 'Deep work · Dhyan se kaam', icon: '🧠', goalCount: 60, unit: 'min', category: 'Work', color: 'violet', time: '10:00' },
+  { name: 'Read · Padhna', icon: '📚', goalCount: 20, unit: 'min', category: 'Learning', color: 'amber', time: '21:00' },
+  { name: 'Stretch · Kasrat', icon: '🧘', goalCount: 10, unit: 'min', category: 'Health', color: 'rose' },
+  { name: 'Reflect · Aaj ka soch', icon: '📓', goalCount: 0, category: 'Evening', color: 'indigo', time: '21:30' },
 ];
 
 export const suggestHabits = (text) => {

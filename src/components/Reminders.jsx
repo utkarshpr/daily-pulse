@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Plus, Bell, BellRing, Pencil, Trash2, Save, X, Check, Clock, Repeat, Wand2, AlertTriangle } from 'lucide-react';
+import { Plus, Bell, BellRing, Pencil, Trash2, Save, X, Check, Clock, Repeat, AlertTriangle, CalendarPlus } from 'lucide-react';
 import { uid, cn } from '../lib/utils';
 import { REPEAT_OPTIONS, labelForRepeat } from '../lib/recurrence';
-import { parseReminder } from '../lib/nlparse';
+import { remindersToICS, downloadICS } from '../lib/ics';
+import SmartInput from './SmartInput';
 
 const EMPTY = { title: '', date: '', time: '', notes: '', repeat: 'none', priority: 'medium' };
 
@@ -56,18 +57,21 @@ export default function Reminders({ reminders, setReminders, confirm, flash }) {
     });
   };
 
-  const applySmartInput = (raw) => {
-    const parsed = parseReminder(raw);
+  const applySmartInput = (_raw, parsed) => {
     setDraft((prev) => {
       const next = {
         ...prev,
         title: parsed.title || prev.title,
         repeat: parsed.repeat === 'none' ? prev.repeat : parsed.repeat,
+        priority: parsed.priority || prev.priority,
+        notes: parsed.category && !prev.notes ? parsed.category : prev.notes,
       };
       if (parsed.when) {
         const { date, time } = splitIso(parsed.when);
         next.date = date;
         next.time = time;
+      } else if (parsed.time && !next.time) {
+        next.time = parsed.time;
       }
       return next;
     });
@@ -129,11 +133,11 @@ export default function Reminders({ reminders, setReminders, confirm, flash }) {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-3xl font-bold">Reminders</h1>
           <p className="text-slate-500 text-sm">Time-based nudges. Browser notifications fire while the app is open.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {permission === 'default' && (
             <button className="btn-ghost" onClick={requestPerm} title="Allow background reminders">
               <Bell size={16} /> Enable notifications
@@ -148,6 +152,19 @@ export default function Reminders({ reminders, setReminders, confirm, flash }) {
             <span className="chip text-[10px] bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" title="Reminders fire in the background">
               <Bell size={11} /> Background ready
             </span>
+          )}
+          {reminders.some((r) => !r.done && r.when) && (
+            <button
+              className="btn-ghost"
+              onClick={() => {
+                const ics = remindersToICS(reminders);
+                downloadICS(`daily-pulse-reminders-${new Date().toISOString().slice(0, 10)}.ics`, ics);
+                flash?.('Calendar file downloaded — open it in Apple/Google Calendar to import');
+              }}
+              title="Export pending reminders as a .ics calendar file"
+            >
+              <CalendarPlus size={16} /> Export to calendar
+            </button>
           )}
           <button className="btn-primary" onClick={startNew} data-action="new-reminder">
             <Plus size={16} /> New reminder
@@ -354,50 +371,3 @@ export default function Reminders({ reminders, setReminders, confirm, flash }) {
   );
 }
 
-function SmartInput({ onApply }) {
-  const [text, setText] = useState('');
-  const apply = () => {
-    const t = text.trim();
-    if (!t) return;
-    onApply(t);
-    setText('');
-  };
-  return (
-    <div className="rounded-xl bg-gradient-to-r from-violet-500/10 to-cyan-500/10 border border-violet-500/20 p-3 mb-4">
-      <label className="text-[10px] uppercase tracking-wider text-violet-600 dark:text-violet-400 font-semibold flex items-center gap-1.5">
-        <Wand2 size={12} /> Smart input
-      </label>
-      <form
-        className="flex gap-2 mt-1"
-        onSubmit={(e) => { e.preventDefault(); apply(); }}
-      >
-        <input
-          placeholder='Try "remind me to call mom tomorrow at 9"'
-          className="input flex-1 text-sm"
-          enterKeyHint="done"
-          autoCapitalize="sentences"
-          autoCorrect="off"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              apply();
-            }
-          }}
-        />
-        <button
-          type="submit"
-          disabled={!text.trim()}
-          className="btn-primary !px-3 shrink-0"
-          aria-label="Apply smart input"
-        >
-          <Wand2 size={14} /> Apply
-        </button>
-      </form>
-      <p className="text-[10px] text-slate-400 mt-1.5">
-        Tap <strong>Apply</strong> or hit <kbd className="px-1 py-0.5 rounded bg-white/60 dark:bg-white/10 border border-slate-200 dark:border-white/10">Enter</kbd> · supports "in 30 min", "tomorrow at 9", "every monday at 7pm", etc.
-      </p>
-    </div>
-  );
-}

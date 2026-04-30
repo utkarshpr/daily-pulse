@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Plus, X, Check, Trash2 } from 'lucide-react';
+import { User, Plus, X, Check, Trash2, Pencil } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 const COLORS = ['violet', 'emerald', 'amber', 'rose', 'cyan', 'indigo'];
@@ -17,6 +17,24 @@ export default function ProfileSwitcher({ profiles, activeId, onSwitch, onCreate
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [color, setColor] = useState('emerald');
+  const [renamingId, setRenamingId] = useState(null);
+  const [renameDraft, setRenameDraft] = useState('');
+
+  const startRename = (p) => {
+    setRenamingId(p.id);
+    setRenameDraft(p.name);
+  };
+  const commitRename = () => {
+    if (renamingId && renameDraft.trim()) {
+      onRename?.(renamingId, renameDraft.trim());
+    }
+    setRenamingId(null);
+    setRenameDraft('');
+  };
+  const cancelRename = () => {
+    setRenamingId(null);
+    setRenameDraft('');
+  };
 
   const active = profiles.find((p) => p.id === activeId) || profiles[0];
 
@@ -47,33 +65,60 @@ export default function ProfileSwitcher({ profiles, activeId, onSwitch, onCreate
       {open && (
         <div className="absolute right-0 left-0 top-full mt-1 z-30 card p-2 animate-pop-in">
           <div className="space-y-1">
-            {profiles.map((p) => (
-              <div
-                key={p.id}
-                className={cn(
-                  'flex items-center gap-2 px-2 py-1.5 rounded-lg transition',
-                  p.id === activeId ? 'bg-gradient-to-r from-violet-500/15 to-cyan-500/15' : 'hover:bg-white/60 dark:hover:bg-white/5'
-                )}
-              >
-                <button onClick={() => { onSwitch(p.id); setOpen(false); }} className="flex items-center gap-2 flex-1 min-w-0 text-left">
-                  <div className={cn('size-7 rounded-lg bg-gradient-to-tr text-white grid place-items-center text-xs font-bold', COLOR_GRAD[p.color] || COLOR_GRAD.violet)}>
+            {profiles.map((p) => {
+              const isRenaming = renamingId === p.id;
+              return (
+                <div
+                  key={p.id}
+                  className={cn(
+                    'flex items-center gap-2 px-2 py-1.5 rounded-lg transition',
+                    p.id === activeId ? 'bg-gradient-to-r from-violet-500/15 to-cyan-500/15' : 'hover:bg-white/60 dark:hover:bg-white/5'
+                  )}
+                >
+                  <div className={cn('size-7 rounded-lg bg-gradient-to-tr text-white grid place-items-center text-xs font-bold shrink-0', COLOR_GRAD[p.color] || COLOR_GRAD.violet)}>
                     {p.name.slice(0, 1).toUpperCase()}
                   </div>
-                  <span className="text-sm font-medium truncate flex-1">{p.name}</span>
-                  {p.id === activeId && <Check size={14} className="text-violet-500" />}
-                </button>
-                {profiles.length > 1 && p.id !== activeId && (
-                  <button
-                    onClick={() => onDelete(p.id)}
-                    className="p-1 rounded hover:bg-rose-500/20 text-rose-500"
-                    aria-label="Delete profile"
-                    title="Delete profile and all its data"
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                )}
-              </div>
-            ))}
+                  {isRenaming ? (
+                    <input
+                      autoFocus
+                      className="input !py-1 text-sm flex-1 min-w-0"
+                      value={renameDraft}
+                      onChange={(e) => setRenameDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') commitRename();
+                        else if (e.key === 'Escape') cancelRename();
+                      }}
+                      onBlur={commitRename}
+                    />
+                  ) : (
+                    <button onClick={() => { onSwitch(p.id); setOpen(false); }} className="flex items-center gap-2 flex-1 min-w-0 text-left">
+                      <span className="text-sm font-medium truncate flex-1">{p.name}</span>
+                      {p.id === activeId && <Check size={14} className="text-violet-500" />}
+                    </button>
+                  )}
+                  {!isRenaming && onRename && (
+                    <button
+                      onClick={() => startRename(p)}
+                      className="p-1 rounded hover:bg-violet-500/20 text-slate-400 hover:text-violet-500"
+                      aria-label="Rename profile"
+                      title="Rename"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                  )}
+                  {!isRenaming && profiles.length > 1 && p.id !== activeId && (
+                    <button
+                      onClick={() => onDelete(p.id)}
+                      className="p-1 rounded hover:bg-rose-500/20 text-rose-500"
+                      aria-label="Delete profile"
+                      title="Delete profile and all its data"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
           <div className="border-t border-slate-200/70 dark:border-white/10 mt-2 pt-2">
             {creating ? (

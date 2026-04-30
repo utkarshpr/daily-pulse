@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Pencil, Trash2, X, Save, GripVertical, CheckSquare, BellPlus } from 'lucide-react';
 import { uid, PALETTE, colorFor, cn } from '../lib/utils';
 import { useDragReorder } from '../hooks/useDragReorder';
+import SmartInput from './SmartInput';
 
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -34,6 +35,26 @@ export default function Tasks({ tasks, setTasks, goals = [], setGoals, confirm, 
     setEditing(null);
     setDraft(EMPTY);
     setTargetInput('');
+  };
+
+  const applySmart = (_raw, parsed) => {
+    setDraft((prev) => {
+      const next = { ...prev };
+      if (parsed.title) next.name = parsed.title;
+      if (parsed.icon) next.icon = parsed.icon;
+      if (parsed.time) next.time = parsed.time;
+      if (parsed.days && parsed.days.length > 0) next.days = parsed.days;
+      if (parsed.category) next.category = parsed.category;
+      if (parsed.goalCount > 0) {
+        next.goalCount = parsed.goalCount;
+        if (parsed.unit) next.unit = parsed.unit;
+      }
+      return next;
+    });
+    if (parsed.goalCount > 0) {
+      setTargetInput(String(parsed.goalCount));
+    }
+    flash?.('Parsed — review and save');
   };
 
   const save = () => {
@@ -141,6 +162,7 @@ export default function Tasks({ tasks, setTasks, goals = [], setGoals, confirm, 
 
       {editing && (
         <div className="card p-5 animate-pop-in">
+          <SmartInput variant="routine" onApply={applySmart} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <label className="text-xs uppercase tracking-wider text-slate-500">Name</label>

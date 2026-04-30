@@ -558,6 +558,15 @@ export default function App() {
     setActiveProfile(id);
     flashWithTimer(`Profile "${name}" created`);
   };
+  const renameProfile = (id, name) => {
+    const trimmed = (name || '').trim();
+    if (!trimmed) {
+      flashWithTimer('Profile name cannot be empty', true);
+      return;
+    }
+    setProfiles((prev) => prev.map((p) => (p.id === id ? { ...p, name: trimmed } : p)));
+    flashWithTimer(`Renamed to "${trimmed}"`);
+  };
   const deleteProfile = async (id) => {
     if (id === activeProfile) {
       flashWithTimer('Switch to a different profile first', true);
@@ -670,6 +679,7 @@ export default function App() {
             activeProfile={activeProfile}
             onSwitchProfile={switchProfile}
             onCreateProfile={createProfile}
+            onRenameProfile={renameProfile}
             onDeleteProfile={deleteProfile}
           />
           <main className="flex-1 min-w-0">

@@ -25,7 +25,7 @@ export default function Sidebar({
   onOpenPalette, onOpenCapture, onOpenCheatSheet, onRestartTour, onInstallApp,
   inboxCount = 0,
   soundPack, setSoundPack,
-  profiles, activeProfile, onSwitchProfile, onCreateProfile, onDeleteProfile,
+  profiles, activeProfile, onSwitchProfile, onCreateProfile, onRenameProfile, onDeleteProfile,
 }) {
   const fileRef = React.useRef(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -164,6 +164,7 @@ export default function Sidebar({
                 activeId={activeProfile}
                 onSwitch={onSwitchProfile}
                 onCreate={onCreateProfile}
+                onRename={onRenameProfile}
                 onDelete={onDeleteProfile}
               />
             </div>
