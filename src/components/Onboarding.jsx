@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Sparkles, ArrowRight, X, Target, Check, Search, Inbox, Keyboard, Bell, Lightbulb, Calendar, ListChecks, CalendarDays, StickyNote, BookOpen, BarChart3, User, Lock, Timer, Smartphone, Wand2, Clock, Repeat, Hash, AlertTriangle, Globe, Newspaper, Snowflake } from 'lucide-react';
-import { parseSmart } from '../lib/nlparse';
+import { Sparkles, ArrowRight, X, Target, Check, Search, Inbox, Keyboard, Bell, Lightbulb, Calendar, ListChecks, CalendarDays, StickyNote, BookOpen, BarChart3, User, Lock, Timer, Smartphone, Wand2, Clock, Repeat, Hash, AlertTriangle, Globe, Newspaper, Snowflake, FileText, Tag } from 'lucide-react';
+import { parseSmart, splitTitle } from '../lib/nlparse';
 import { uid, cn } from '../lib/utils';
 import { suggestHabits, STARTER_ROUTINES } from '../lib/habitSuggestions';
 
@@ -275,6 +275,8 @@ function RoutinesStep({ detected, offered, picked, onTogglePick }) {
 
 // Showpiece: a few real phrases the parser handles, mixing English + Hinglish.
 // Each row renders the original phrase plus the live-parsed chips below it.
+// The two trailing routine examples specifically demo the description-split
+// syntax (parens + colon) that powers auto-fill on the Routines form.
 const SMART_EXAMPLES = [
   { kind: 'reminder', phrase: 'remind me to call manav tomorrow at 8' },
   { kind: 'reminder', phrase: 'kal subah 7 baje yoga' },
@@ -282,8 +284,8 @@ const SMART_EXAMPLES = [
   { kind: 'reminder', phrase: 'pay rent on the 5th' },
   { kind: 'reminder', phrase: 'in 30 mins check the oven' },
   { kind: 'routine', phrase: 'har roz 8 glass paani peena' },
-  { kind: 'routine', phrase: '💪 workout weekdays at 6:30am' },
-  { kind: 'routine', phrase: 'read 20 pages every evening' },
+  { kind: 'routine', phrase: '💪 workout (30 min strength) weekdays at 6:30am' },
+  { kind: 'routine', phrase: 'read 20 pages every evening: build the reading habit' },
 ];
 
 const DAY_LETTER = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -305,6 +307,12 @@ function ParsedChip({ icon: Icon, label, tint }) {
 
 function SmartDemoRow({ kind, phrase }) {
   const parsed = parseSmart(phrase);
+  // Routines split a parsed title at separators (`(...)`, `:`, `—`, `-`) into
+  // name + description on the form. Mirror that here so the demo accurately
+  // reflects what the user will see.
+  const split = kind === 'routine' ? splitTitle(parsed.title) : null;
+  const displayName = split ? split.name : parsed.title;
+  const displayDescription = split ? split.description : '';
   return (
     <div className="rounded-xl border border-slate-200/70 dark:border-white/10 bg-white/40 dark:bg-white/5 p-3">
       <div className="flex items-center gap-2 mb-2">
@@ -340,8 +348,14 @@ function SmartDemoRow({ kind, phrase }) {
         {parsed.priority === 'high' && (
           <ParsedChip icon={AlertTriangle} label="high" tint="bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-400/30" />
         )}
-        {parsed.title && (
-          <span className="text-[11px] text-slate-500 ml-1">→ <em className="text-slate-700 dark:text-slate-200 font-medium not-italic">{parsed.title}</em></span>
+        {parsed.category && (
+          <ParsedChip icon={Tag} label={parsed.category} tint="bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300 border-fuchsia-400/30" />
+        )}
+        {displayDescription && (
+          <ParsedChip icon={FileText} label={displayDescription} tint="bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-400/30" />
+        )}
+        {displayName && (
+          <span className="text-[11px] text-slate-500 ml-1">→ <em className="text-slate-700 dark:text-slate-200 font-medium not-italic">{displayName}</em></span>
         )}
       </div>
     </div>
@@ -370,6 +384,21 @@ function SmartDemoStep() {
         Quantities like <code>5 km</code>, <code>20 lbs</code>, <code>8 glasses</code>, <code>30 pages</code> are recognized.
         Type a one-off date on the Routines tab (or a recurring habit on Reminders) and we'll suggest switching to the right surface.
       </p>
+      <div className="mt-3 rounded-xl border border-violet-400/30 bg-violet-500/10 p-3 text-[11px] leading-relaxed">
+        <div className="flex items-center gap-1.5 font-semibold text-violet-700 dark:text-violet-300 mb-1">
+          <Sparkles size={11} /> New on Routines — fill the description in one line
+        </div>
+        <div className="text-slate-600 dark:text-slate-300">
+          Wrap it in <code className="px-1 rounded bg-white/70 dark:bg-white/10">(parens)</code>, or follow with <code className="px-1 rounded bg-white/70 dark:bg-white/10">:</code> / <code className="px-1 rounded bg-white/70 dark:bg-white/10">—</code>:
+        </div>
+        <div className="mt-1.5 flex flex-col gap-1 font-mono text-[10.5px]">
+          <code className="px-1.5 py-0.5 rounded bg-white/70 dark:bg-white/10">workout <span className="text-violet-600 dark:text-violet-300">(30 min strength)</span> weekdays at 7am</code>
+          <code className="px-1.5 py-0.5 rounded bg-white/70 dark:bg-white/10">meditate<span className="text-violet-600 dark:text-violet-300">: calm the mind</span> daily</code>
+        </div>
+        <div className="mt-1.5 text-slate-500 dark:text-slate-400">
+          Description is now required on routines — having a "why" makes streaks stick.
+        </div>
+      </div>
     </div>
   );
 }
@@ -378,9 +407,9 @@ function SmartDemoStep() {
 // release: a Smart-input cross-tab hint that suggests Reminder-vs-Routine,
 // and Calendar feeds for subscribing to public .ics holiday/personal feeds.
 const FEATURES_CORE = [
-  { icon: Wand2, title: 'Smart input', body: 'Type Hindi or English: "kal subah 8 baje yoga", "har roz 8 glass paani". Typos like "rat", "subha", "dupahar" all parse. If you type a one-off date on Routines (or a recurring habit on Reminders), we suggest switching to the right surface.', gradient: 'from-violet-600 via-fuchsia-500 to-cyan-500' },
+  { icon: Wand2, title: 'Smart input', body: 'Type Hindi or English: "kal subah 8 baje yoga", "har roz 8 glass paani". Typos like "rat", "subha", "dupahar" all parse. On Routines, wrap a description in (parens) or after ":" / "—" and it auto-fills the Description field. We also suggest switching tabs when the input looks like the wrong surface.', gradient: 'from-violet-600 via-fuchsia-500 to-cyan-500' },
   { icon: Calendar, title: 'Today', body: 'Streaks, weekly heat strip (calendar week, today highlighted), swipe-to-check, drag-reorder. Time chip shows AM/PM.', gradient: 'from-violet-500 to-fuchsia-500' },
-  { icon: ListChecks, title: 'Routines', body: 'Habits with time, days, counts, colors. One-tap "remind me" turns any routine into a daily reminder.', gradient: 'from-cyan-500 to-sky-500' },
+  { icon: ListChecks, title: 'Routines', body: 'Habits with time, days, counts, colors. Description is required (forces a "why"). Categories you type once are remembered and offered as suggestions next time. One-tap "remind me" turns any routine into a daily reminder.', gradient: 'from-cyan-500 to-sky-500' },
   { icon: Bell, title: 'Reminders', body: 'Date + time picker, repeats, smart parser. Export to Apple/Google Calendar via .ics.', gradient: 'from-indigo-500 to-blue-500' },
   { icon: CalendarDays, title: 'Calendar', body: 'Month grid: routine completion, notes, reminders. Holiday names show as colored chips on the day; click any date to see its full breakdown.', gradient: 'from-amber-500 to-orange-500' },
   { icon: Globe, title: 'Calendar feeds', body: 'Subscribe to public .ics calendars — holidays preset (India / US / UK) or paste your own iCloud / Google share link. Imports run client-side; refreshes through a free CORS proxy.', gradient: 'from-cyan-500 to-blue-500' },

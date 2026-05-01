@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Plus, Pencil, Trash2, X, Save, GripVertical, CheckSquare, BellPlus } from 'lucide-react';
 import { uid, PALETTE, colorFor, cn } from '../lib/utils';
+import { splitTitle } from '../lib/nlparse';
 import { useDragReorder } from '../hooks/useDragReorder';
 import SmartInput from './SmartInput';
 
@@ -40,7 +41,11 @@ export default function Tasks({ tasks, setTasks, goals = [], setGoals, confirm, 
   const applySmart = (_raw, parsed) => {
     setDraft((prev) => {
       const next = { ...prev };
-      if (parsed.title) next.name = parsed.title;
+      if (parsed.title) {
+        const { name, description } = splitTitle(parsed.title);
+        next.name = name;
+        if (description) next.description = description;
+      }
       if (parsed.icon) next.icon = parsed.icon;
       if (parsed.time) next.time = parsed.time;
       // When the parser only resolved an absolute moment (parsed.when) — e.g.
@@ -83,15 +88,37 @@ export default function Tasks({ tasks, setTasks, goals = [], setGoals, confirm, 
       flash?.('Routine name is required', true);
       return;
     }
+    if (!draft.description.trim()) {
+      flash?.('Description is required — what is this routine for?', true);
+      return;
+    }
+    const cleaned = {
+      ...draft,
+      name: draft.name.trim(),
+      description: draft.description.trim(),
+      category: (draft.category || '').trim(),
+    };
     if (editing === 'new') {
-      setTasks((prev) => [...prev, { ...draft, id: uid(), name: draft.name.trim() }]);
+      setTasks((prev) => [...prev, { ...cleaned, id: uid() }]);
       flash?.('Routine added');
     } else {
-      setTasks((prev) => prev.map((t) => (t.id === editing ? { ...draft, id: editing, name: draft.name.trim() } : t)));
+      setTasks((prev) => prev.map((t) => (t.id === editing ? { ...cleaned, id: editing } : t)));
       flash?.('Routine updated');
     }
     cancel();
   };
+
+  // Built-in suggestions plus every distinct category the user has actually
+  // used on a routine — typing "Hobby" once means it shows up in the dropdown
+  // for the next routine, no separate management UI needed.
+  const userCategories = useMemo(() => {
+    const set = new Set(CATEGORY_SUGGESTIONS);
+    tasks.forEach((t) => {
+      const c = (t.category || '').trim();
+      if (c) set.add(c);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [tasks]);
 
   const remove = async (id) => {
     const linkedGoals = goals.filter((g) => (g.linkedTaskIds || []).includes(id));
@@ -232,25 +259,30 @@ export default function Tasks({ tasks, setTasks, goals = [], setGoals, confirm, 
               />
             </div>
             <div className="md:col-span-2">
-              <label className="text-xs uppercase tracking-wider text-slate-500">Description</label>
+              <label className="text-xs uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                Description <span className="text-rose-500" aria-hidden="true">*</span>
+                <span className="sr-only">required</span>
+              </label>
               <input
                 className="input mt-1"
-                placeholder="A short note about this routine"
+                placeholder="What this routine is for — used to remind you why it matters"
                 value={draft.description}
                 onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+                required
+                aria-required="true"
               />
             </div>
             <div className="md:col-span-2">
               <label className="text-xs uppercase tracking-wider text-slate-500">Category (optional)</label>
               <input
                 className="input mt-1"
-                placeholder="Morning, Work, Health…"
+                placeholder="Morning, Work, Health… or type your own"
                 value={draft.category}
                 onChange={(e) => setDraft({ ...draft, category: e.target.value })}
                 list="category-suggestions"
               />
               <datalist id="category-suggestions">
-                {CATEGORY_SUGGESTIONS.map((c) => <option key={c} value={c} />)}
+                {userCategories.map((c) => <option key={c} value={c} />)}
               </datalist>
             </div>
 

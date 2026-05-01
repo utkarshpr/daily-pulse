@@ -275,25 +275,54 @@ export default function Notes({ notes, setNotes, confirm, flash }) {
     if (listening) return stopListening();
     const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Rec) {
-      flash?.('Voice input not supported in this browser', true);
+      flash?.('Voice input not supported in this browser (try Chrome/Edge/Safari)', true);
+      return;
+    }
+    // Browsers gate getUserMedia/SpeechRecognition to secure contexts. localhost
+    // counts as secure, but accessing the dev server from a LAN IP over plain
+    // http does not — surface that so the user knows why the mic stays silent.
+    if (typeof window !== 'undefined' && !window.isSecureContext) {
+      flash?.('Voice input needs HTTPS or localhost', true);
       return;
     }
     const r = new Rec();
     r.lang = navigator.language || 'en-US';
     r.continuous = true;
-    r.interimResults = false;
+    r.interimResults = true;
     r.onresult = (e) => {
-      let text = '';
+      let finalText = '';
       for (let i = e.resultIndex; i < e.results.length; i++) {
-        text += e.results[i][0].transcript;
+        if (e.results[i].isFinal) {
+          finalText += e.results[i][0].transcript;
+        }
       }
-      setDraft((prev) => ({ ...prev, body: (prev.body ? prev.body + ' ' : '') + text.trim() }));
+      if (!finalText.trim()) return;
+      setDraft((prev) => ({
+        ...prev,
+        body: (prev.body ? prev.body.replace(/\s+$/, '') + ' ' : '') + finalText.trim(),
+      }));
     };
-    r.onerror = () => stopListening();
+    r.onerror = (e) => {
+      const map = {
+        'not-allowed': 'Microphone permission was blocked',
+        'service-not-allowed': 'Microphone permission was blocked',
+        'no-speech': 'Didn\'t catch anything — try speaking closer to the mic',
+        'audio-capture': 'No microphone detected',
+        'network': 'Speech recognition needs network access',
+      };
+      const msg = map[e.error] || `Voice input error: ${e.error || 'unknown'}`;
+      // 'aborted' fires whenever we call stop() ourselves — don't shout at the user for that
+      if (e.error !== 'aborted') flash?.(msg, true);
+      stopListening();
+    };
     r.onend = () => setListening(false);
-    r.start();
-    recognitionRef.current = r;
-    setListening(true);
+    try {
+      r.start();
+      recognitionRef.current = r;
+      setListening(true);
+    } catch (err) {
+      flash?.('Could not start voice input — try again', true);
+    }
   };
 
   const stopListening = () => {

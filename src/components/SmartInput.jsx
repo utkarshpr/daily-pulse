@@ -16,11 +16,11 @@ const PLACEHOLDERS = {
     'review PRs every weekday at 4pm',
   ],
   routine: [
-    'drink 8 glasses of water daily',
-    '💪 workout weekdays at 7am',
-    'read 30 pages every evening',
-    'meditate 10 min every morning',
-    'journal 3 lines every night',
+    'drink 8 glasses of water daily — stay hydrated',
+    '💪 workout: 30 min strength training weekdays at 7am',
+    'read 30 pages every evening (build the reading habit)',
+    'meditate 10 min every morning — calm mind, clear day',
+    'journal: 3 lines about today every night',
   ],
 };
 
@@ -122,6 +122,14 @@ export default function SmartInput({
 
   const hasSignal =
     parsed && (parsed.when || parsed.time || parsed.days || parsed.repeat !== 'none' || parsed.icon || parsed.priority || parsed.goalCount || parsed.category);
+
+  // Routine title syntax detection: did the user use one of the recognized
+  // separators that auto-splits into name + description? If they're typing on
+  // the routine variant and haven't, we'll keep nudging them with an example.
+  const hasDescriptionSeparator = useMemo(() => {
+    if (variant !== 'routine' || !text.trim()) return false;
+    return /\([^()]+\)|\s+[—–-]\s+|:\s+|;\s+/.test(text);
+  }, [text, variant]);
 
   return (
     <div className="relative rounded-2xl p-[1px] mb-4 bg-gradient-to-r from-violet-500/40 via-fuchsia-500/40 to-cyan-500/40 animate-gradient" style={{ backgroundSize: '200% 200%' }}>
@@ -266,9 +274,42 @@ export default function SmartInput({
           </div>
         )}
 
+        {variant === 'routine' && (
+          <div
+            className={cn(
+              'mt-3 rounded-xl border px-3 py-2 text-[11px] leading-relaxed transition',
+              hasDescriptionSeparator
+                ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                : 'border-violet-400/30 bg-violet-500/10 text-slate-700 dark:text-slate-200'
+            )}
+          >
+            {hasDescriptionSeparator ? (
+              <span className="flex items-center gap-1.5 font-semibold">
+                <Sparkles size={11} /> Description detected — it'll fill the Description field.
+              </span>
+            ) : (
+              <>
+                <div className="font-semibold text-violet-700 dark:text-violet-300 mb-1 flex items-center gap-1.5">
+                  <Sparkles size={11} /> Tip — write the description like this:
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <code className="px-1.5 py-0.5 rounded bg-white/70 dark:bg-white/10 border border-slate-200/60 dark:border-white/10 font-mono">
+                    workout <span className="text-violet-600 dark:text-violet-300">(30 min cardio)</span> weekdays at 7am
+                  </code>
+                  <code className="px-1.5 py-0.5 rounded bg-white/70 dark:bg-white/10 border border-slate-200/60 dark:border-white/10 font-mono">
+                    meditate<span className="text-violet-600 dark:text-violet-300">: calm the mind</span> daily
+                  </code>
+                </div>
+                <div className="mt-1 text-slate-500 dark:text-slate-400">
+                  Anything in <code className="px-1 rounded bg-white/60 dark:bg-white/10">(parentheses)</code>, after <code className="px-1 rounded bg-white/60 dark:bg-white/10">:</code>, or after <code className="px-1 rounded bg-white/60 dark:bg-white/10"> — </code> goes into <em>Description</em>.
+                </div>
+              </>
+            )}
+          </div>
+        )}
         {!text && (
           <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">
-            Type freely — times, days, counts, priority & emoji are picked up automatically.
+            Times, days, counts, priority & emoji are picked up automatically.
             Hit <kbd className="px-1 py-0.5 rounded bg-white/60 dark:bg-white/10 border border-slate-200 dark:border-white/10">Enter</kbd> to fill the form.
           </p>
         )}

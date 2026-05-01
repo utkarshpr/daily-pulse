@@ -587,6 +587,38 @@ export const parseSmart = (raw) => {
   };
 };
 
+// Split a smart-input title into a short name and a longer description.
+// Recognized separators (in priority order):
+//   "Name (description)"   — parens
+//   "Name — description"   — em-dash with surrounding space
+//   "Name – description"   — en-dash
+//   "Name: description"    — colon + space
+//   "Name; description"    — semicolon + space
+//   "Name - description"   — hyphen with surrounding space (last so we don't split "warm-up")
+// Returns { name, description }; if no separator is found, the entire title
+// becomes the name and description stays empty.
+export const splitTitle = (title) => {
+  if (!title) return { name: '', description: '' };
+  const trimmed = String(title).trim();
+  const paren = trimmed.match(/^(.+?)\s*\(([^()]+)\)\s*(.*)$/);
+  if (paren && paren[1].trim() && paren[2].trim()) {
+    const tail = paren[3].trim();
+    const name = (paren[1].trim() + (tail ? ' ' + tail : '')).replace(/\s+/g, ' ').trim();
+    return { name, description: paren[2].trim() };
+  }
+  const seps = [/\s+—\s+/, /\s+–\s+/, /:\s+/, /;\s+/, /\s+-\s+/];
+  for (const sep of seps) {
+    const idx = trimmed.search(sep);
+    if (idx > 0) {
+      const m = trimmed.match(sep);
+      const name = trimmed.slice(0, idx).trim();
+      const description = trimmed.slice(idx + m[0].length).trim();
+      if (name && description) return { name, description };
+    }
+  }
+  return { name: trimmed, description: '' };
+};
+
 // Backward-compat: existing callers keep working unchanged.
 export const parseReminder = (raw) => {
   const r = parseSmart(raw);

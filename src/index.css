@@ -5,6 +5,8 @@
 @layer base {
   html, body, #root {
     height: 100%;
+    overflow-x: hidden;
+    max-width: 100vw;
   }
   html {
     /* Removes the 300ms tap delay + double-tap-to-zoom on mobile */
