@@ -1,6 +1,7 @@
 import React from 'react';
-import { Sparkles, ListChecks, StickyNote, Bell, BarChart3, Calendar, Download, Upload, Menu, X, CalendarDays, Target, Lock, Unlock, Printer, Search, Inbox, BookOpen, Volume2, Keyboard, FileSpreadsheet, Compass, Smartphone, ChevronDown, HelpCircle, Database, Newspaper } from 'lucide-react';
+import { ListChecks, StickyNote, Bell, BarChart3, Calendar, Download, Upload, Menu, X, CalendarDays, Target, Lock, Unlock, Printer, Search, Inbox, BookOpen, Volume2, Keyboard, FileSpreadsheet, Compass, Smartphone, ChevronDown, HelpCircle, Database, Newspaper } from 'lucide-react';
 import { cn } from '../lib/utils';
+import BrandMark from './BrandMark';
 import ThemeToggle from './ThemeToggle';
 import { PRESETS } from '../lib/presets';
 import { SOUND_PACKS, playChime } from '../lib/chime';
@@ -36,6 +37,8 @@ export default function Sidebar({
 }) {
   const fileRef = React.useRef(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
+  // Mobile FAB nav popover (the speed-dial that replaces the old 5-tab bar).
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   const handleImport = (e) => {
     const f = e.target.files?.[0];
@@ -52,7 +55,7 @@ export default function Sidebar({
     const allowedWhileFrozen = !frozen || FROZEN_ALLOWED.has(item.id);
     return (
       <button
-        onClick={() => { setActive(item.id); setDrawerOpen(false); }}
+        onClick={() => { setActive(item.id); setDrawerOpen(false); setMobileMenuOpen(false); }}
         disabled={!allowedWhileFrozen}
         className={cn(
           'relative flex items-center rounded-xl text-sm font-medium transition',
@@ -123,42 +126,71 @@ export default function Sidebar({
 
   return (
     <>
-      {/* Mobile top bar */}
+      {/* Mobile bottom bar — branding + utility actions. Minimal style: no
+          card-style outlines on the utility buttons, just ghost icons with a
+          hover wash. The FAB above already surfaces the current page, so the
+          bar drops the page-label subtitle. */}
       <div
-        className="lg:hidden card p-3 flex items-center gap-2 sticky z-40"
-        style={{ top: 'calc(0.5rem + env(safe-area-inset-top))' }}
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 px-4 pt-2.5 flex items-center gap-1 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl border-t border-white/60 dark:border-white/10 no-print"
+        style={{ paddingBottom: 'calc(0.625rem + env(safe-area-inset-bottom))' }}
       >
-        <div className="size-9 rounded-xl bg-gradient-to-tr from-violet-600 to-cyan-500 grid place-items-center text-white shadow-lg shadow-violet-500/30 shrink-0">
-          <Sparkles size={18} />
+        <div className="size-8 rounded-lg bg-gradient-to-tr from-violet-600 to-cyan-500 grid place-items-center text-white shrink-0">
+          <BrandMark size={18} />
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="font-bold leading-tight text-sm">Daily Pulse</div>
-          <div className="text-[10px] text-slate-500 leading-tight truncate">
-            {NAV.find((n) => n.id === active)?.label}
-          </div>
+        <div className="flex-1 min-w-0 ml-1">
+          <div className="font-semibold leading-tight text-sm tracking-tight">Routinely</div>
         </div>
-        <button onClick={onOpenCapture} className="size-9 rounded-lg bg-white/60 dark:bg-white/5 border border-white/60 dark:border-white/10 grid place-items-center relative" aria-label="Quick capture" title="Quick capture (i)">
-          <Inbox size={15} />
+        <button onClick={onOpenCapture} className="size-9 rounded-lg grid place-items-center relative text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/5 active:scale-95 transition" aria-label="Quick capture" title="Quick capture (i)">
+          <Inbox size={17} />
           {inboxCount > 0 && (
-            <span className="absolute -top-1 -right-1 size-4 rounded-full bg-gradient-to-tr from-violet-600 to-cyan-500 text-white text-[9px] font-bold grid place-items-center">{inboxCount > 9 ? '9+' : inboxCount}</span>
+            <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-violet-500" />
           )}
         </button>
-        <button onClick={onOpenPalette} className="size-9 rounded-lg bg-white/60 dark:bg-white/5 border border-white/60 dark:border-white/10 grid place-items-center" aria-label="Open command palette" title="Search (⌘K)">
-          <Search size={15} />
+        <button onClick={onOpenPalette} className="size-9 rounded-lg grid place-items-center text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/5 active:scale-95 transition" aria-label="Open command palette" title="Search (⌘K)">
+          <Search size={17} />
         </button>
         <ThemeToggle theme={theme} setTheme={setTheme} compact />
-        <button onClick={() => setDrawerOpen(true)} className="size-9 rounded-lg bg-white/60 dark:bg-white/5 border border-white/60 dark:border-white/10 grid place-items-center" aria-label="Open menu">
-          <Menu size={16} />
+        <button onClick={() => setDrawerOpen(true)} className="size-9 rounded-lg grid place-items-center text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/5 active:scale-95 transition" aria-label="Open menu">
+          <Menu size={18} />
         </button>
       </div>
 
-      {/* Mobile bottom tab bar */}
-      <nav
-        className="lg:hidden fixed left-3 right-3 z-30 card p-1.5 grid grid-cols-5 gap-0.5 no-print"
-        style={{ bottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+      {/* Mobile primary-nav FAB — speed-dial style. Replaces the old 5-tab
+          row. Shows the current page's icon so it doubles as a "you are
+          here" indicator; tap to expand a popover with the main nav targets.
+          Sits above the bottom bar in the lower-right corner. */}
+      <button
+        onClick={() => setMobileMenuOpen((v) => !v)}
+        className="lg:hidden fixed right-4 z-40 size-14 rounded-full bg-gradient-to-tr from-violet-600 to-cyan-500 grid place-items-center text-white shadow-xl shadow-violet-500/40 active:scale-95 transition-transform no-print"
+        style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom))' }}
+        aria-label="Open navigation"
+        aria-expanded={mobileMenuOpen}
       >
-        {MOBILE_NAV.map((n) => (<NavButton key={n.id} item={n} compact />))}
-      </nav>
+        {(() => {
+          const ActiveIcon = NAV.find((n) => n.id === active)?.icon || Compass;
+          return <ActiveIcon size={22} />;
+        })()}
+      </button>
+
+      {/* Mobile FAB popover — pill-stacked nav choices that float above the
+          FAB. Backdrop dims/blurs the page so the popover reads cleanly even
+          over busy content. */}
+      {mobileMenuOpen && (
+        <div
+          className="lg:hidden fixed inset-0 z-[35] bg-slate-900/40 backdrop-blur-sm animate-fade-in no-print"
+          onClick={() => setMobileMenuOpen(false)}
+        >
+          <div
+            className="absolute right-4 card p-2 animate-pop-in space-y-1 min-w-[180px]"
+            style={{ bottom: 'calc(9rem + env(safe-area-inset-bottom))' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {MOBILE_NAV.map((n) => (
+              <NavButton key={n.id} item={n} />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Mobile drawer */}
       {drawerOpen && (
@@ -233,10 +265,10 @@ export default function Sidebar({
         <div className="card p-4 lg:h-full flex flex-col">
           <div className="flex items-center gap-3 px-2 py-2">
             <div className="size-10 rounded-xl bg-gradient-to-tr from-violet-600 to-cyan-500 grid place-items-center text-white shadow-lg shadow-violet-500/30">
-              <Sparkles size={20} />
+              <BrandMark size={22} />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="font-bold leading-tight">Daily Pulse</div>
+              <div className="font-bold leading-tight">Routinely</div>
               <div className="text-[11px] text-slate-500 leading-tight">Local-first tracker</div>
             </div>
           </div>

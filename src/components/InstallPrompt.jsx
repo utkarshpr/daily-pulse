@@ -62,7 +62,7 @@ export default function InstallPrompt({ open, onClose }) {
           </div>
           <div>
             <div className="text-[10px] uppercase tracking-[0.2em] text-violet-600 dark:text-violet-400 font-semibold">Install</div>
-            <h3 className="text-xl font-bold">Add Daily Pulse to your home screen</h3>
+            <h3 className="text-xl font-bold">Add Routinely to your home screen</h3>
           </div>
         </div>
 
@@ -99,7 +99,7 @@ export default function InstallPrompt({ open, onClose }) {
               steps={[
                 ['Tap the Share button at the bottom of Safari', <Share size={14} key="s" />],
                 ['Scroll down and tap "Add to Home Screen"', <Home size={14} key="h" />],
-                ['Tap "Add" — Daily Pulse will appear on your home screen', null],
+                ['Tap "Add" — Routinely will appear on your home screen', null],
               ]}
             />
             <Note>
@@ -121,7 +121,7 @@ export default function InstallPrompt({ open, onClose }) {
                 heading="Desktop / other"
                 steps={[
                   ['Look for the install icon in your address bar', <Download size={14} key="d" />],
-                  ['Or open the browser menu and choose "Install Daily Pulse"', null],
+                  ['Or open the browser menu and choose "Install Routinely"', null],
                 ]}
               />
             )}

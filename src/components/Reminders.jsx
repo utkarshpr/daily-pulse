@@ -168,7 +168,7 @@ export default function Reminders({ reminders, setReminders, confirm, flash, pen
               className="btn-ghost"
               onClick={() => {
                 const ics = remindersToICS(reminders);
-                downloadICS(`daily-pulse-reminders-${new Date().toISOString().slice(0, 10)}.ics`, ics);
+                downloadICS(`routinely-reminders-${new Date().toISOString().slice(0, 10)}.ics`, ics);
                 flash?.('Calendar file downloaded — open it in Apple/Google Calendar to import');
               }}
               title="Export pending reminders as a .ics calendar file"

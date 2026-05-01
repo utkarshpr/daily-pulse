@@ -30,14 +30,14 @@ const RRULE = {
   monthly: 'FREQ=MONTHLY',
 };
 
-export const remindersToICS = (reminders, calName = 'Daily Pulse Reminders') => {
+export const remindersToICS = (reminders, calName = 'Routinely Reminders') => {
   const now = toICSDate(new Date().toISOString());
   const events = (reminders || [])
     .filter((r) => r && r.when && !r.done)
     .map((r) => {
       const lines = [
         'BEGIN:VEVENT',
-        `UID:${r.id}@dailypulse`,
+        `UID:${r.id}@routinely`,
         `DTSTAMP:${now}`,
         `DTSTART:${toICSDate(r.when)}`,
         `SUMMARY:${escapeText(r.title || 'Reminder')}`,
@@ -51,7 +51,7 @@ export const remindersToICS = (reminders, calName = 'Daily Pulse Reminders') => 
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Daily Pulse//Reminders 1.0//EN',
+    'PRODID:-//Routinely//Reminders 1.0//EN',
     'CALSCALE:GREGORIAN',
     `X-WR-CALNAME:${escapeText(calName)}`,
     ...events,
@@ -74,7 +74,7 @@ export const downloadICS = (filename, content) => {
 // Reads an iCalendar string and returns a flat array of events:
 //   { uid, title, description, start (ISO), end (ISO|null), allDay, rrule }
 //
-// Scope: enough to surface holiday + personal-calendar feeds inside Daily Pulse.
+// Scope: enough to surface holiday + personal-calendar feeds inside Routinely.
 // We DO NOT expand RRULEs ourselves — for the holiday feeds the user typically
 // imports, each occurrence is published as its own VEVENT, so expansion isn't
 // needed. If a feed uses RRULE=YEARLY for a single seed event we'll only show

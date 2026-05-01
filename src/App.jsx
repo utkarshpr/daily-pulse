@@ -325,13 +325,13 @@ export default function App() {
         clearInterval(titleTimerRef.current);
         titleTimerRef.current = null;
       }
-      document.title = 'Daily Pulse — Track your routines, notes & reminders';
+      document.title = 'Routinely — Track your routines, notes & reminders';
       return;
     }
     let on = false;
     titleTimerRef.current = setInterval(() => {
       on = !on;
-      document.title = on ? '⏰ Reminder is due' : 'Daily Pulse';
+      document.title = on ? '⏰ Reminder is due' : 'Routinely';
     }, 900);
     return () => { if (titleTimerRef.current) clearInterval(titleTimerRef.current); };
   }, [alertQueue.length]);
@@ -424,7 +424,7 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `daily-pulse-${activeProfile}-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `routinely-${activeProfile}-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
     flash('Exported your data');
@@ -436,7 +436,7 @@ export default function App() {
       return;
     }
     const csv = completionsToCSV(tasks, completions);
-    downloadCSV(`daily-pulse-completions-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+    downloadCSV(`routinely-completions-${new Date().toISOString().slice(0, 10)}.csv`, csv);
     flash('CSV exported');
   };
 
@@ -657,22 +657,18 @@ export default function App() {
         </div>
       )}
 
-      {/* Frosted safe-area strips for mobile/PWA — gives the status bar and home
-          indicator zone a blurred backdrop so scrolling content doesn't bleed
-          through. Heights include the small bar offsets so the blur is also
-          visible in regular browsers where the safe-area envs resolve to 0. */}
-      <div
-        aria-hidden="true"
-        className="lg:hidden fixed top-0 left-0 right-0 z-[35] pointer-events-none bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl"
-        style={{ height: 'calc(0.75rem + env(safe-area-inset-top))' }}
-      />
+      {/* Frosted safe-area strip for the home-indicator zone. The matching
+          top strip was removed — the mobile top bar now extends through the
+          top safe-area itself (see Sidebar.jsx) so a separate blur layer is no
+          longer needed and used to create a visible seam under the iPhone
+          notch. */}
       <div
         aria-hidden="true"
         className="lg:hidden fixed bottom-0 left-0 right-0 z-[25] pointer-events-none bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl"
         style={{ height: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
       />
 
-      <div className="min-h-screen p-3 lg:p-6 pb-24 lg:pb-6">
+      <div className="min-h-screen p-3 pt-6 pb-32 lg:p-6 lg:pb-6">
         <div className="mx-auto max-w-7xl flex flex-col lg:flex-row gap-3 lg:gap-6">
           <Sidebar
             active={active}
@@ -815,7 +811,7 @@ export default function App() {
             </div>
 
             <footer className="mt-10 mb-4 text-center text-xs text-slate-400 no-print">
-              Built with React · Press <kbd className="px-1.5 py-0.5 rounded border border-slate-300 dark:border-white/10 mx-1">⌘K</kbd> to search · <kbd className="px-1.5 py-0.5 rounded border border-slate-300 dark:border-white/10 mx-1">?</kbd> for shortcuts
+              Built with ❤️ · Press <kbd className="px-1.5 py-0.5 rounded border border-slate-300 dark:border-white/10 mx-1">⌘K</kbd> to search · <kbd className="px-1.5 py-0.5 rounded border border-slate-300 dark:border-white/10 mx-1">?</kbd> for shortcuts
             </footer>
           </main>
         </div>

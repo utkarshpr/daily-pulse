@@ -31,7 +31,7 @@ export const encryptString = async (plaintext, password) => {
 };
 
 export const decryptString = async (blob, password) => {
-  if (!blob.startsWith('DPv1.')) throw new Error('Not a Daily Pulse encrypted blob');
+  if (!blob.startsWith('DPv1.')) throw new Error('Not a Routinely encrypted blob');
   const packed = fromB64(blob.slice(5));
   const salt = packed.slice(0, 16);
   const iv = packed.slice(16, 28);

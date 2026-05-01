@@ -9,11 +9,11 @@ export default function ThemeToggle({ theme, setTheme, compact = false }) {
   if (compact) {
     // Hard-coded pixel layout to make the thumb position math literal and
     // immune to font-size scaling, parent flex stretching, or rem rounding.
-    //   track 60px wide × 32px tall, padding 3px → thumb area 54×26
-    //   thumb 26×26 sits flush to one side → travel = 54 − 26 = 28px
-    const TRACK_W = 60;
-    const TRACK_H = 32;
-    const THUMB = 26;
+    //   track 50px wide × 28px tall, padding 3px → thumb area 44×22
+    //   thumb 22×22 sits flush to one side → travel = 44 − 22 = 22px
+    const TRACK_W = 50;
+    const TRACK_H = 28;
+    const THUMB = 22;
     const PAD = 3;
     return (
       <button
@@ -43,15 +43,7 @@ export default function ThemeToggle({ theme, setTheme, compact = false }) {
             transform: `translateX(${isDark ? TRACK_W - THUMB - PAD * 2 : 0}px)`,
           }}
         >
-          {isDark ? <Moon size={13} /> : <Sun size={13} />}
-        </span>
-        <span
-          className={cn(
-            'absolute inset-0 flex items-center justify-between text-[9px] font-bold tracking-wider pointer-events-none',
-            isDark ? 'text-white/40 pl-2 pr-9' : 'text-slate-600/60 pl-9 pr-2'
-          )}
-        >
-          {isDark ? <span>DARK</span> : <span className="ml-auto">LITE</span>}
+          {isDark ? <Moon size={12} /> : <Sun size={12} />}
         </span>
       </button>
     );

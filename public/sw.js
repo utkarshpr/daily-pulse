@@ -1,4 +1,4 @@
-const CACHE = 'daily-pulse-v2';
+const CACHE = 'routinely-v2';
 const ASSETS = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg', '/favicon.svg'];
 
 // ---- Install / activate / fetch ----

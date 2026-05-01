@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles } from 'lucide-react';
+import BrandMark from './BrandMark';
 
 export default function Splash() {
   return (
@@ -9,12 +9,12 @@ export default function Splash() {
         <div className="relative">
           <div className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-violet-500 to-cyan-500 blur-2xl opacity-60 animate-pulse-soft" />
           <div className="relative size-20 rounded-3xl bg-gradient-to-tr from-violet-600 to-cyan-500 grid place-items-center text-white shadow-2xl shadow-violet-500/40 animate-pop-in">
-            <Sparkles size={36} className="animate-pulse-soft" />
+            <BrandMark size={40} className="animate-pulse-soft" />
           </div>
         </div>
         <div className="text-center">
           <div className="text-2xl font-bold bg-gradient-to-r from-violet-600 via-fuchsia-500 to-cyan-500 bg-clip-text text-transparent">
-            Daily Pulse
+            Routinely
           </div>
           <div className="text-xs uppercase tracking-[0.3em] text-slate-500 mt-1">Loading…</div>
         </div>

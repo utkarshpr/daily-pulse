@@ -1,6 +1,6 @@
 <div align="center">
 
-# Daily Pulse
+# Routinely
 
 **A beautiful, local-first command center for your day.**
 Routines, goals, notes, reminders, journal, calendar — all in one private, offline-ready PWA.
@@ -11,9 +11,9 @@ Routines, goals, notes, reminders, journal, calendar — all in one private, off
 
 ---
 
-## Why Daily Pulse?
+## Why Routinely?
 
-Most habit and productivity apps either lock you into a cloud, hide your data behind a login, or do one thing well and a dozen things poorly. Daily Pulse runs entirely in your browser, stores everything in `localStorage`, and bundles a tightly-integrated set of tools that talk to each other — so the routine you complete this morning shows up in your streak, your stats, your weekly review, and your badge shelf without ever leaving the device.
+Most habit and productivity apps either lock you into a cloud, hide your data behind a login, or do one thing well and a dozen things poorly. Routinely runs entirely in your browser, stores everything in `localStorage`, and bundles a tightly-integrated set of tools that talk to each other — so the routine you complete this morning shows up in your streak, your stats, your weekly review, and your badge shelf without ever leaving the device.
 
 No account. No sync server. No telemetry. Open the page, use the app.
 
@@ -69,7 +69,7 @@ deep work block in 45 min
 review goals every sunday at 9am
 ```
 
-If you type something on the wrong tab, Daily Pulse politely offers to hand it off — type a one-shot date in *Routines* and it suggests creating a *Reminder* instead.
+If you type something on the wrong tab, Routinely politely offers to hand it off — type a one-shot date in *Routines* and it suggests creating a *Reminder* instead.
 
 ### Notes that link and embed
 
@@ -152,7 +152,7 @@ npm run preview   # serve the built bundle locally
 
 ## Deploy
 
-Daily Pulse is a plain Vite static build, so it runs on any static host:
+Routinely is a plain Vite static build, so it runs on any static host:
 
 1. **Vercel** — push to GitHub and import on [vercel.com/new](https://vercel.com/new). Framework preset: **Vite**. Build command: `npm run build`. Output: `dist`. The bundled `vercel.json` rewrites all routes to `/` so client-side state survives refreshes.
 2. **Vercel CLI** — `npm i -g vercel && vercel` from the project root.

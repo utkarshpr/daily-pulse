@@ -1,6 +1,6 @@
 {
-  "name": "Daily Pulse",
-  "short_name": "Daily Pulse",
+  "name": "Routinely",
+  "short_name": "Routinely",
   "description": "Local-first daily routine, notes, and reminders tracker.",
   "start_url": "/",
   "scope": "/",

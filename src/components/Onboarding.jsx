@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Sparkles, ArrowRight, X, Target, Check, Search, Inbox, Keyboard, Bell, Lightbulb, Calendar, ListChecks, CalendarDays, StickyNote, BookOpen, BarChart3, User, Lock, Timer, Smartphone, Wand2, Clock, Repeat, Hash, AlertTriangle, Globe, Newspaper, Snowflake, FileText, Tag } from 'lucide-react';
+import BrandMark from './BrandMark';
 import { parseSmart, splitTitle } from '../lib/nlparse';
 import { uid, cn } from '../lib/utils';
 import { suggestHabits, STARTER_ROUTINES } from '../lib/habitSuggestions';
@@ -151,7 +152,7 @@ function Welcome() {
           className="relative size-20 rounded-3xl bg-gradient-to-tr from-violet-600 via-fuchsia-500 to-cyan-500 grid place-items-center text-white shadow-xl shadow-violet-500/40 animate-float"
           style={{ backgroundSize: '200% 200%' }}
         >
-          <Sparkles size={36} />
+          <BrandMark size={40} />
         </div>
       </div>
       <div className="mt-4 text-[10px] uppercase tracking-[0.25em] text-violet-600 dark:text-violet-400 font-bold">Welcome to</div>
@@ -159,7 +160,7 @@ function Welcome() {
         className="text-3xl font-extrabold mt-1 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-cyan-500 bg-clip-text text-transparent animate-gradient"
         style={{ backgroundSize: '200% 200%' }}
       >
-        Daily Pulse
+        Routinely
       </h2>
       <p className="mt-3 text-sm text-slate-600 dark:text-slate-300 leading-relaxed max-w-sm mx-auto">
         A local-first tracker for routines, notes, reminders & goals.
@@ -514,7 +515,7 @@ function DoneStep({ goalText, count }) {
             {count > 0 ? <> with <strong>{count}</strong> linked routine{count === 1 ? '' : 's'}</> : ''}.
           </>
         ) : (
-          <>Daily Pulse is ready. Add routines, notes, and reminders as they come up.</>
+          <>Routinely is ready. Add routines, notes, and reminders as they come up.</>
         )}
       </p>
       <p className="text-xs text-slate-400 mt-4">

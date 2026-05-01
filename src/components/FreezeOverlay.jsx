@@ -71,7 +71,7 @@ export default function FreezeOverlay({ active }) {
       ))}
 
       {/* Hint chip — non-interactive, just tells the user what to do. */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/95 text-white text-[11px] font-semibold shadow-lg shadow-cyan-500/40 animate-pop-in pointer-events-none">
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/95 text-white text-[11px] font-semibold shadow-lg shadow-cyan-500/40 animate-pop-in pointer-events-none">
         <Snowflake size={12} className="animate-pulse-soft" />
         Frozen · click Freeze on Today to unfreeze
       </div>
