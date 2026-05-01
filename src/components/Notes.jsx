@@ -396,20 +396,20 @@ export default function Notes({ notes, setNotes, confirm, flash }) {
       )}
 
       {editing && (
-        <div className={cn('card p-5 animate-pop-in border-2', noteColor(draft.color).border)}>
+        <div className={cn('card p-3 sm:p-5 animate-pop-in border-2 overflow-hidden', noteColor(draft.color).border)}>
           <div className="flex items-center justify-between gap-2">
             <input
               autoFocus
-              className="flex-1 bg-transparent text-xl font-semibold focus:outline-none placeholder:text-slate-400"
+              className="flex-1 min-w-0 bg-transparent text-xl font-semibold focus:outline-none placeholder:text-slate-400"
               placeholder="Title"
               value={draft.title}
               onChange={(e) => setDraft({ ...draft, title: e.target.value })}
             />
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 shrink-0">
               <button
                 onClick={toggleListening}
                 className={cn(
-                  'btn-ghost !px-3 !py-1.5 text-xs',
+                  'btn-ghost !px-2.5 !py-1.5 text-xs',
                   listening && 'text-rose-600 dark:text-rose-400 animate-pulse-soft'
                 )}
                 aria-label="Voice input"
@@ -419,11 +419,12 @@ export default function Notes({ notes, setNotes, confirm, flash }) {
               </button>
               <button
                 onClick={() => setPreview((p) => !p)}
-                className={cn('btn-ghost !px-3 !py-1.5 text-xs', preview && 'text-violet-600')}
+                className={cn('btn-ghost !px-2.5 !py-1.5 text-xs', preview && 'text-violet-600')}
                 title={preview ? 'Edit' : 'Preview'}
+                aria-label={preview ? 'Edit' : 'Preview'}
               >
                 {preview ? <PencilIcon size={14} /> : <Eye size={14} />}
-                {preview ? 'Edit' : 'Preview'}
+                <span className="hidden sm:inline">{preview ? 'Edit' : 'Preview'}</span>
               </button>
             </div>
           </div>
