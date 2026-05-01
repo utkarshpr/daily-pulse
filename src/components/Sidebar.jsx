@@ -55,8 +55,8 @@ export default function Sidebar({
         onClick={() => { setActive(item.id); setDrawerOpen(false); }}
         disabled={!allowedWhileFrozen}
         className={cn(
-          'relative flex items-center rounded-xl text-sm font-medium transition shrink-0',
-          compact ? 'flex-col gap-0.5 px-3 py-2 min-w-[64px]' : 'gap-3 px-3 py-2.5 w-full',
+          'relative flex items-center rounded-xl text-sm font-medium transition',
+          compact ? 'flex-col gap-0.5 px-1 py-2 w-full min-w-0' : 'gap-3 px-3 py-2.5 w-full shrink-0',
           isActive ? 'text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/5',
           frozen && (allowedWhileFrozen ? 'z-[150]' : 'opacity-30 pointer-events-none')
         )}
@@ -65,8 +65,13 @@ export default function Sidebar({
         {isActive && (
           <span className="absolute inset-0 rounded-xl bg-gradient-to-tr from-violet-600 to-cyan-500 shadow-lg shadow-violet-500/20" />
         )}
-        <Icon size={compact ? 18 : 17} className="relative z-10" />
-        <span className={cn('relative z-10', compact && 'text-[10px] uppercase tracking-wider')}>
+        <Icon size={compact ? 18 : 17} className="relative z-10 shrink-0" />
+        <span
+          className={cn(
+            'relative z-10',
+            compact ? 'text-[10px] uppercase tracking-wider max-w-full truncate' : 'truncate'
+          )}
+        >
           {item.label}
         </span>
       </button>
@@ -149,7 +154,7 @@ export default function Sidebar({
 
       {/* Mobile bottom tab bar */}
       <nav
-        className="lg:hidden fixed left-3 right-3 z-30 card p-1.5 flex items-center justify-between overflow-x-auto scroll-area no-print"
+        className="lg:hidden fixed left-3 right-3 z-30 card p-1.5 grid grid-cols-5 gap-0.5 no-print"
         style={{ bottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
       >
         {MOBILE_NAV.map((n) => (<NavButton key={n.id} item={n} compact />))}
