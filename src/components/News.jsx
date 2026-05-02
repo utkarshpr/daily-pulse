@@ -1,6 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Newspaper, RefreshCw, ExternalLink, Filter, Play, Search, Globe, Trophy, Car, X } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 import { cn } from '../lib/utils';
+
+const isNative = () => Capacitor?.isNativePlatform?.() === true;
+
+// On native, the in-app webview cannot follow target="_blank" and the codetabs
+// CORS proxy is flaky; CapacitorHttp lets us hit YouTube directly. On web we
+// keep the proxy because browsers enforce CORS on the YouTube feed host.
+const openExternal = async (url) => {
+  if (!url) return;
+  if (isNative()) {
+    await Browser.open({ url });
+  } else {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+};
 
 // Two free, no-backend sources:
 //   1. The Guardian Open Platform — uses the literal `test` key for casual
@@ -172,7 +188,7 @@ const fetchVideoCategory = async (categoryId) => {
   const fetches = cat.channels.map(async (ch) => {
     try {
       const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${ch.id}`;
-      const r = await fetch(PROXY + encodeURIComponent(feedUrl));
+      const r = await fetch(isNative() ? feedUrl : PROXY + encodeURIComponent(feedUrl));
       if (!r.ok) return [];
       const xml = await r.text();
       return parseYouTubeAtom(xml, ch.name);
@@ -409,6 +425,12 @@ export default function News({ flash }) {
                 href={it.url}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={(e) => {
+                  if (isNative()) {
+                    e.preventDefault();
+                    openExternal(it.url);
+                  }
+                }}
                 className="flex items-start gap-3 group"
               >
                 {it.image && (
