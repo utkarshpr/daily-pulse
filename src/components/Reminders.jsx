@@ -3,6 +3,7 @@ import { Plus, Bell, BellRing, Pencil, Trash2, Save, X, Check, Clock, Repeat, Al
 import { uid, cn } from '../lib/utils';
 import { REPEAT_OPTIONS, labelForRepeat } from '../lib/recurrence';
 import { remindersToICS, downloadICS } from '../lib/ics';
+import { checkPushPermission, requestPushPermission } from '../lib/push';
 import SmartInput from './SmartInput';
 
 const EMPTY = { title: '', date: '', time: '', notes: '', repeat: 'none', priority: 'medium' };
@@ -29,14 +30,21 @@ const splitIso = (iso) => {
 export default function Reminders({ reminders, setReminders, confirm, flash, pendingCapture, clearPendingCapture, onSwitchToRoutine }) {
   const [editing, setEditing] = useState(null);
   const [draft, setDraft] = useState(EMPTY);
-  const [permission, setPermission] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'denied');
+  const [permission, setPermission] = useState('default');
+
+  useEffect(() => {
+    let cancelled = false;
+    checkPushPermission().then((p) => {
+      if (!cancelled) setPermission(p);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const requestPerm = async () => {
-    if (typeof Notification === 'undefined') return;
-    const p = await Notification.requestPermission();
+    const p = await requestPushPermission();
     setPermission(p);
-    if (p === 'granted') flash?.('Notifications enabled — reminders will fire even when this tab is closed');
-    else if (p === 'denied') flash?.('Notifications blocked — re-enable in browser site settings', true);
+    if (p === 'granted') flash?.('Notifications enabled — reminders will fire even when the app is closed');
+    else if (p === 'denied') flash?.('Notifications blocked — enable them in system settings for this app', true);
   };
 
   const startNew = () => {
@@ -109,6 +117,7 @@ export default function Reminders({ reminders, setReminders, confirm, flash, pen
         ...prev,
       ]);
       flash?.('Reminder set');
+      if (permission === 'default') requestPerm();
     } else {
       setReminders((prev) =>
         prev.map((r) =>
@@ -145,7 +154,7 @@ export default function Reminders({ reminders, setReminders, confirm, flash, pen
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-3xl font-bold">Reminders</h1>
-          <p className="text-slate-500 text-sm">Time-based nudges. Browser notifications fire while the app is open.</p>
+          <p className="text-slate-500 text-sm">Time-based nudges. Notifications fire even when the app is closed.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {permission === 'default' && (
@@ -154,8 +163,8 @@ export default function Reminders({ reminders, setReminders, confirm, flash, pen
             </button>
           )}
           {permission === 'denied' && (
-            <span className="chip text-[10px] bg-rose-500/15 text-rose-600 dark:text-rose-400" title="Re-enable in browser site settings">
-              <Bell size={11} /> Notifications blocked
+            <span className="chip text-[10px] bg-rose-500/15 text-rose-600 dark:text-rose-400" title="Open the system settings for this app and turn notifications on">
+              <Bell size={11} /> Notifications blocked — enable in app settings
             </span>
           )}
           {permission === 'granted' && (

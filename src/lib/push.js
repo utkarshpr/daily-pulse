@@ -32,6 +32,18 @@ export const pushPermission = () => {
   return typeof Notification === 'undefined' ? 'denied' : Notification.permission;
 };
 
+// Async, works on both native and web. Returns 'granted' | 'denied' | 'default'.
+export const checkPushPermission = async () => {
+  if (isNative()) {
+    const res = await LocalNotifications.checkPermissions();
+    if (res.display === 'granted') return 'granted';
+    if (res.display === 'denied') return 'denied';
+    return 'default'; // 'prompt' or 'prompt-with-rationale'
+  }
+  if (typeof Notification === 'undefined') return 'denied';
+  return Notification.permission;
+};
+
 export const requestPushPermission = async () => {
   if (isNative()) {
     const res = await LocalNotifications.requestPermissions();
