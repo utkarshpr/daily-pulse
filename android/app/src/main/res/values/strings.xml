@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Routinely</string>
+    <string name="title_activity_main">Routinely</string>
+    <string name="package_name">com.routinely.app</string>
+    <string name="custom_url_scheme">com.routinely.app</string>
+</resources>

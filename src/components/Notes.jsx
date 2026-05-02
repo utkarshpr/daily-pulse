@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Plus, Pencil, Trash2, Save, X, Search, Pin, PinOff, Mic, MicOff, Eye, Pencil as PencilIcon, Hash, Image as ImageIcon, Link2, ChevronDown, FileText, Users, GitBranch, Lightbulb, BookOpen } from 'lucide-react';
+import { Plus, Pencil, Trash2, Save, X, Search, Pin, PinOff, Mic, MicOff, Eye, Pencil as PencilIcon, Hash, Image as ImageIcon, Link2, ChevronDown, FileText, Users, GitBranch, Lightbulb, BookOpen, Share2 } from 'lucide-react';
 import { marked } from 'marked';
 import { uid, NOTE_COLORS, noteColor, cn } from '../lib/utils';
 
@@ -198,6 +198,28 @@ export default function Notes({ notes, setNotes, confirm, flash }) {
 
   const togglePin = (id) => {
     setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, pinned: !n.pinned, updatedAt: Date.now() } : n)));
+  };
+
+  const shareNote = async (n) => {
+    const title = n.title?.trim() || 'Untitled note';
+    // Strip embedded data: image URLs — they bloat the payload past what WhatsApp/Messages accept
+    const cleanBody = (n.body || '').replace(/!\[([^\]]*)\]\(data:[^)]+\)/g, '_[image omitted]_');
+    const text = n.title?.trim() ? `*${n.title.trim()}*\n\n${cleanBody}` : cleanBody;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text });
+        return;
+      } catch (err) {
+        if (err?.name === 'AbortError') return;
+        // fall through to clipboard
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      flash?.('Share unavailable — note copied to clipboard');
+    } catch {
+      flash?.('Could not share note', true);
+    }
   };
 
   const addTag = (raw) => {
@@ -633,6 +655,9 @@ export default function Notes({ notes, setNotes, confirm, flash }) {
                   <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100 transition">
                     <button onClick={() => togglePin(n.id)} className="p-1.5 rounded-md hover:bg-white/60 dark:hover:bg-white/10" aria-label="Pin">
                       {n.pinned ? <PinOff size={14} /> : <Pin size={14} />}
+                    </button>
+                    <button onClick={() => shareNote(n)} className="p-1.5 rounded-md hover:bg-white/60 dark:hover:bg-white/10" aria-label="Share" title="Share">
+                      <Share2 size={14} />
                     </button>
                     <button onClick={() => startEdit(n)} className="p-1.5 rounded-md hover:bg-white/60 dark:hover:bg-white/10" aria-label="Edit">
                       <Pencil size={14} />
